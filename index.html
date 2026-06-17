@@ -458,10 +458,17 @@
             // Safety check to ensure 'edit' maps to 'editor-view'
             if (viewName === 'edit') viewName = 'editor';
             
-            document.getElementById('list-view').classList.add('hidden');
-            document.getElementById('editor-view').classList.add('hidden');
-            document.getElementById('preview-view').classList.add('hidden');
-            document.getElementById(`${viewName}-view`).classList.remove('hidden');
+            const listEl = document.getElementById('list-view');
+            const editorEl = document.getElementById('editor-view');
+            const previewEl = document.getElementById('preview-view');
+            const targetEl = document.getElementById(`${viewName}-view`);
+            
+            // Fail-safe checks to prevent null 'classList' crashes
+            if (listEl) listEl.classList.add('hidden');
+            if (editorEl) editorEl.classList.add('hidden');
+            if (previewEl) previewEl.classList.add('hidden');
+            if (targetEl) targetEl.classList.remove('hidden');
+            else console.warn(`Could not find view: ${viewName}-view`);
             
             if(viewName === 'list') {
                 const activeTab = document.querySelector('.dashboard-tab.border-[#f37021]');
@@ -472,7 +479,9 @@
                     window.toggleDashboardTab('reports');
                 }
             }
-            if(viewName === 'preview') renderPreview();
+            if(viewName === 'preview' && typeof window.renderPreview === 'function') {
+                window.renderPreview();
+            }
             window.scrollTo(0, 0);
         };
 
@@ -483,23 +492,28 @@
                 const content = document.getElementById(`dashboard-${t}`);
                 const actions = document.getElementById(`action-buttons-${t}`);
                 
+                // Fail-safe toggling
                 if(t === tabName) {
-                    btn.classList.replace('border-transparent', 'border-[#f37021]');
-                    btn.classList.replace('text-gray-400', 'text-white');
-                    content?.classList.remove('hidden');
-                    actions?.classList.remove('hidden');
+                    if (btn) {
+                        btn.classList.replace('border-transparent', 'border-[#f37021]');
+                        btn.classList.replace('text-gray-400', 'text-white');
+                    }
+                    if (content) content.classList.remove('hidden');
+                    if (actions) actions.classList.remove('hidden');
                 } else {
-                    btn.classList.replace('border-[#f37021]', 'border-transparent');
-                    btn.classList.replace('text-white', 'text-gray-400');
-                    content?.classList.add('hidden');
-                    actions?.classList.add('hidden');
+                    if (btn) {
+                        btn.classList.replace('border-[#f37021]', 'border-transparent');
+                        btn.classList.replace('text-white', 'text-gray-400');
+                    }
+                    if (content) content.classList.add('hidden');
+                    if (actions) actions.classList.add('hidden');
                 }
             });
 
-            if(tabName === 'reports') renderReportsDashboard();
-            if(tabName === 'docs') renderList();
-            if(tabName === 'expenses') renderExpensesDashboard();
-            if(tabName === 'clients') renderClientsDashboard();
+            if(tabName === 'reports' && typeof window.renderReportsDashboard === 'function') window.renderReportsDashboard();
+            if(tabName === 'docs' && typeof window.renderList === 'function') window.renderList();
+            if(tabName === 'expenses' && typeof window.renderExpensesDashboard === 'function') window.renderExpensesDashboard();
+            if(tabName === 'clients' && typeof window.renderClientsDashboard === 'function') window.renderClientsDashboard();
         };
 
         const initAuth = async () => {
