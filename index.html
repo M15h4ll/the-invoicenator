@@ -368,7 +368,7 @@
     <div id="preview-view" class="p-4 md:p-8 max-w-4xl mx-auto print:max-w-none print:p-0 bg-gray-100 print:bg-white min-h-screen hidden">
         <!-- Toolbar -->
         <div class="print-hidden flex justify-between items-center mb-6">
-            <button onclick="switchView('edit')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+            <button onclick="switchView('editor')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
                 <i class="fa-solid fa-pen-to-square"></i> Back to Editor
             </button>
             <div class="flex gap-3">
@@ -455,6 +455,9 @@
         document.getElementById('current-year-display').innerText = new Date().getFullYear();
 
         window.switchView = (viewName) => {
+            // Safety check to ensure 'edit' maps to 'editor-view'
+            if (viewName === 'edit') viewName = 'editor';
+            
             document.getElementById('list-view').classList.add('hidden');
             document.getElementById('editor-view').classList.add('hidden');
             document.getElementById('preview-view').classList.add('hidden');
@@ -944,7 +947,7 @@
                 window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
                 window.currentDoc.number = `INV-${window.getNextNumber('Invoice')}`;
                 populateEditorForm();
-                switchView('edit');
+                switchView('editor');
             } catch (err) {
                 console.error(err);
                 showToast("Error opening document editor.");
@@ -953,7 +956,7 @@
 
         window.editExisting = (id) => {
             const doc = window.documentsList.find(d => d.id === id);
-            if(doc) { window.currentDoc = JSON.parse(JSON.stringify(doc)); populateEditorForm(); switchView('edit'); }
+            if(doc) { window.currentDoc = JSON.parse(JSON.stringify(doc)); populateEditorForm(); switchView('editor'); }
         };
 
         window.previewExisting = (id) => {
