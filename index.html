@@ -6,6 +6,8 @@
     <title>Ignition Art Invoice Maker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Income/Expense Graphs -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Print specific overrides to ensure the PDF looks perfect */
         @media print {
@@ -27,11 +29,11 @@
     </div>
 
     <!-- Confirm Delete Modal -->
-    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden print-hidden">
         <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full text-center mx-4">
             <i class="fa-solid fa-triangle-exclamation text-red-500 text-4xl mb-4"></i>
-            <h3 class="text-xl font-bold mb-2">Delete Document?</h3>
-            <p class="text-gray-600 mb-6 font-medium">This action cannot be undone. Are you sure you want to delete this document?</p>
+            <h3 class="text-xl font-bold mb-2">Delete Record?</h3>
+            <p class="text-gray-600 mb-6 font-medium">This action cannot be undone. Are you sure you want to delete this?</p>
             <div class="flex justify-center gap-4">
                 <button onclick="closeConfirmModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
                 <button id="confirm-delete-btn" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg font-bold text-white transition-colors">Yes, Delete</button>
@@ -39,22 +41,139 @@
         </div>
     </div>
 
+    <!-- Expense Modal -->
+    <div id="expense-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden print-hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-black uppercase text-gray-800">Add Expense</h3>
+                <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
+                    <input type="date" id="modal-expense-date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Description</label>
+                    <input type="text" id="modal-expense-desc" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium" placeholder="e.g. Office Supplies, Software...">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Amount (OMR)</label>
+                    <input type="number" id="modal-expense-amount" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium" step="0.001">
+                </div>
+                <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                    <input type="checkbox" id="modal-expense-vat" class="w-5 h-5 text-[#f37021] rounded focus:ring-[#f37021]">
+                    <label for="modal-expense-vat" class="text-sm font-bold text-gray-700">Includes 5% VAT (For Tax Deduction)</label>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeExpenseModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
+                <button onclick="saveExpense()" class="px-5 py-2.5 bg-[#f37021] hover:bg-[#d95d18] text-white rounded-lg font-bold transition-colors">Save Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Management Modal -->
+    <div id="client-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden print-hidden">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-black uppercase text-gray-800" id="client-modal-title">Add Client</h3>
+                <button onclick="closeClientModal()" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <input type="hidden" id="modal-client-id">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Company / Client Name</label>
+                    <input type="text" id="modal-client-name" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium" placeholder="e.g. Nama Dhofar Services">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">VAT Number</label>
+                    <input type="text" id="modal-client-vat" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">CR Number</label>
+                    <input type="text" id="modal-client-cr" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Address / P.O. Box</label>
+                    <textarea id="modal-client-address" rows="3" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium"></textarea>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeClientModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
+                <button onclick="saveModalClient()" class="px-5 py-2.5 bg-[#f37021] hover:bg-[#d95d18] text-white rounded-lg font-bold transition-colors">Save Client</button>
+            </div>
+        </div>
+    </div>
+
     <!-- === LIST VIEW === -->
     <div id="list-view" class="p-6 max-w-6xl mx-auto print-hidden">
-        <div class="flex justify-between items-center mb-8 bg-[#1f2937] p-8 rounded-2xl shadow-xl text-white border-b-4 border-[#f37021]">
-            <div>
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-[#1f2937] p-8 rounded-2xl shadow-xl text-white border-b-4 border-[#f37021] gap-6">
+            <div class="w-full">
                 <h1 class="text-3xl font-black tracking-tight flex items-center gap-3 uppercase">
-                    <i class="fa-solid fa-briefcase text-[#f37021]"></i>
-                    Ignition Docs
+                    <i class="fa-solid fa-fire-flame-curved text-[#f37021]"></i>
+                    Ignition Hub
                 </h1>
-                <p class="text-[#b2beb5] mt-2 font-medium">Manage Invoices, Quotations, and Clients</p>
+                
+                <!-- Main Navigation Tabs -->
+                <div class="mt-5 flex flex-wrap gap-2 md:gap-6 border-b border-gray-600 pb-1">
+                    <button onclick="toggleDashboardTab('reports')" id="tab-reports" class="dashboard-tab pb-2 border-b-[3px] border-[#f37021] text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-chart-pie"></i> Reports & Tax
+                    </button>
+                    <button onclick="toggleDashboardTab('docs')" id="tab-docs" class="dashboard-tab pb-2 border-b-[3px] border-transparent text-gray-400 hover:text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-file-invoice"></i> Documents
+                    </button>
+                    <button onclick="toggleDashboardTab('expenses')" id="tab-expenses" class="dashboard-tab pb-2 border-b-[3px] border-transparent text-gray-400 hover:text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-receipt"></i> Expenses
+                    </button>
+                    <button onclick="toggleDashboardTab('clients')" id="tab-clients" class="dashboard-tab pb-2 border-b-[3px] border-transparent text-gray-400 hover:text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-address-book"></i> Address Book
+                    </button>
+                </div>
             </div>
-            <button onclick="createNewDocument()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
-                <i class="fa-solid fa-plus"></i> New Document
-            </button>
+
+            <!-- Contextual Action Buttons -->
+            <div id="action-buttons-docs" class="hidden shrink-0">
+                <button onclick="createNewDocument()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                    <i class="fa-solid fa-plus"></i> New Document
+                </button>
+            </div>
+            <div id="action-buttons-expenses" class="hidden shrink-0">
+                <button onclick="openExpenseModal()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                    <i class="fa-solid fa-plus"></i> Add Expense
+                </button>
+            </div>
+            <div id="action-buttons-clients" class="hidden shrink-0">
+                <button onclick="openClientModal()" class="bg-[#b2beb5] hover:bg-gray-400 text-gray-900 px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                    <i class="fa-solid fa-user-plus"></i> Add Client
+                </button>
+            </div>
+            <div id="action-buttons-reports" class="shrink-0 text-gray-400 text-sm font-bold">
+                <i class="fa-solid fa-calendar-days mr-1"></i> <span id="current-year-display"></span>
+            </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <!-- Tab: Reports & Dashboard -->
+        <div id="dashboard-reports" class="space-y-6">
+            <!-- Chart Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-chart-line text-[#f37021] mr-2"></i> Income vs Expenses (Current Year)</h3>
+                <div class="w-full h-80">
+                    <canvas id="financeChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Tax Calculation Section -->
+            <div>
+                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-landmark text-[#b2beb5] mr-2"></i> Quarterly VAT Summary</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="tax-cards-container">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Documents Section -->
+        <div id="dashboard-docs" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
             <div id="loading-indicator" class="p-10 text-center text-gray-500 font-medium animate-pulse">
                 Synchronizing with cloud...
             </div>
@@ -63,17 +182,67 @@
                 <h3 class="text-xl font-bold text-gray-700">No documents yet</h3>
                 <p class="text-gray-500 mt-2">Create your first invoice or quotation to get started.</p>
             </div>
-            <table id="documents-table" class="w-full text-left border-collapse hidden">
+            <div class="overflow-x-auto">
+                <table id="documents-table" class="w-full text-left border-collapse hidden whitespace-nowrap">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                            <th class="p-4 font-bold">Type</th>
+                            <th class="p-4 font-bold">Number</th>
+                            <th class="p-4 font-bold">Date</th>
+                            <th class="p-4 font-bold">Client</th>
+                            <th class="p-4 font-bold text-center">Payment Status</th>
+                            <th class="p-4 font-bold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documents-tbody">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab: Expenses Section -->
+        <div id="dashboard-expenses" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+            <div id="expenses-empty-state" class="p-16 text-center hidden">
+                <i class="fa-solid fa-receipt text-6xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-bold text-gray-700">No expenses logged</h3>
+                <p class="text-gray-500 mt-2">Track your company expenses here to automatically calculate your VAT deductions.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table id="expenses-table" class="w-full text-left border-collapse hidden">
+                    <thead>
+                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                            <th class="p-4 font-bold">Date</th>
+                            <th class="p-4 font-bold">Description</th>
+                            <th class="p-4 font-bold text-right">Amount (OMR)</th>
+                            <th class="p-4 font-bold text-center">Includes VAT</th>
+                            <th class="p-4 font-bold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="expenses-tbody">
+                        <!-- Rows populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Tab: Clients Section -->
+        <div id="dashboard-clients" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+            <div id="clients-empty-state" class="p-16 text-center hidden">
+                <i class="fa-solid fa-address-book text-6xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-bold text-gray-700">No clients yet</h3>
+                <p class="text-gray-500 mt-2">Add clients here to easily generate invoices for them later.</p>
+            </div>
+            <table id="clients-table" class="w-full text-left border-collapse hidden">
                 <thead>
                     <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
-                        <th class="p-4 font-bold">Type</th>
-                        <th class="p-4 font-bold">Number</th>
-                        <th class="p-4 font-bold">Date</th>
-                        <th class="p-4 font-bold">Client</th>
+                        <th class="p-4 font-bold">Client Name</th>
+                        <th class="p-4 font-bold">VAT Number</th>
+                        <th class="p-4 font-bold">CR Number</th>
                         <th class="p-4 font-bold text-right">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="documents-tbody">
+                <tbody id="clients-tbody">
                     <!-- Rows populated by JS -->
                 </tbody>
             </table>
@@ -101,14 +270,22 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Document Type</label>
-                    <select id="doc-type" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input">
+                    <select id="doc-type" onchange="handleTypeChange()" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input">
                         <option value="Invoice">Tax Invoice</option>
                         <option value="Quotation">Quotation</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Document Number</label>
-                    <input type="text" id="doc-number" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input" placeholder="e.g. #104 or QT38">
+                    <label class="block text-sm font-bold text-gray-700 mb-1 flex justify-between items-center">
+                        Document Number
+                        <span class="text-[10px] text-gray-400 font-normal uppercase tracking-widest">Editable</span>
+                    </label>
+                    <div class="flex shadow-sm rounded-lg relative">
+                        <input type="text" id="doc-number" class="w-full border border-gray-300 rounded-l-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input border-r-0" placeholder="e.g. #104 or QT38">
+                        <button onclick="triggerAutoGenerate()" class="bg-gray-50 border border-gray-300 rounded-r-lg px-4 hover:bg-orange-50 transition-colors border-l-0 flex items-center justify-center group" title="Auto Generate Number">
+                            <i class="fa-solid fa-wand-magic-sparkles text-gray-400 group-hover:text-[#f37021] transition-colors"></i>
+                        </button>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
@@ -213,14 +390,31 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Global State variables
+        // Firebase Configuration (Directly Embedded per Request)
+        const firebaseConfig = {
+            apiKey: "AIzaSyBJAsHf9E4Jjp7l6YPV1I9KV9V7APo6Yfs",
+            authDomain: "invocenator.firebaseapp.com",
+            projectId: "invocenator",
+            storageBucket: "invocenator.firebasestorage.app",
+            messagingSenderId: "1021108717787",
+            appId: "1:1021108717787:web:40c50eada1e0166752a4fe"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = 'invocenator-app';
+
+        // Global State
         window.user = null;
         window.documentsList = [];
         window.clientsList = [];
+        window.expensesList = [];
         window.currentDoc = null;
-        window.documentToDelete = null;
+        window.itemToDelete = { type: null, id: null };
+        window.chartInstance = null;
 
         const defaultDoc = {
             id: '',
@@ -234,43 +428,67 @@
             items: [],
             taxRate: 5,
             discountRate: 0,
+            status: 'pending', // pending | paid
             notes: 'Service Terms:\n- Ignition art production and development have the right to use the project output for company profile and marketing purposes.\n\nPayment Terms:\n50% Upon agreement\n50% Upon delivery'
         };
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ignition-invoice-app';
-
-        // Helper to format currency
-        window.formatOMR = (amount) => {
-            const num = parseFloat(amount) || 0;
-            return `OMR ${num.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-        };
-
-        // UI Helpers
+        // Helpers
+        window.formatOMR = (amount) => `OMR ${parseFloat(amount || 0).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+        
         window.showToast = (msg) => {
             const toast = document.getElementById('toast-container');
             document.getElementById('toast-message').innerText = msg;
             toast.classList.remove('translate-y-[-100%]', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-[-100%]', 'opacity-0');
-            }, 3000);
+            setTimeout(() => toast.classList.add('translate-y-[-100%]', 'opacity-0'), 3000);
         };
+
+        document.getElementById('current-year-display').innerText = new Date().getFullYear();
 
         window.switchView = (viewName) => {
             document.getElementById('list-view').classList.add('hidden');
             document.getElementById('editor-view').classList.add('hidden');
             document.getElementById('preview-view').classList.add('hidden');
-            
             document.getElementById(`${viewName}-view`).classList.remove('hidden');
-            if(viewName === 'list') renderList();
+            
+            if(viewName === 'list') {
+                const activeTab = document.querySelector('.dashboard-tab.border-[#f37021]');
+                if(activeTab) {
+                    const tabId = activeTab.id.replace('tab-', '');
+                    window.toggleDashboardTab(tabId);
+                } else {
+                    window.toggleDashboardTab('reports');
+                }
+            }
             if(viewName === 'preview') renderPreview();
             window.scrollTo(0, 0);
         };
 
-        // Auth Initialization
+        window.toggleDashboardTab = (tabName) => {
+            const tabs = ['reports', 'docs', 'expenses', 'clients'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`tab-${t}`);
+                const content = document.getElementById(`dashboard-${t}`);
+                const actions = document.getElementById(`action-buttons-${t}`);
+                
+                if(t === tabName) {
+                    btn.classList.replace('border-transparent', 'border-[#f37021]');
+                    btn.classList.replace('text-gray-400', 'text-white');
+                    content?.classList.remove('hidden');
+                    actions?.classList.remove('hidden');
+                } else {
+                    btn.classList.replace('border-[#f37021]', 'border-transparent');
+                    btn.classList.replace('text-white', 'text-gray-400');
+                    content?.classList.add('hidden');
+                    actions?.classList.add('hidden');
+                }
+            });
+
+            if(tabName === 'reports') renderReportsDashboard();
+            if(tabName === 'docs') renderList();
+            if(tabName === 'expenses') renderExpensesDashboard();
+            if(tabName === 'clients') renderClientsDashboard();
+        };
+
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
@@ -278,9 +496,7 @@
                 } else {
                     await signInAnonymously(auth);
                 }
-            } catch (err) {
-                console.error("Auth error:", err);
-            }
+            } catch (err) { console.error("Auth error:", err); }
         };
         initAuth();
 
@@ -288,74 +504,267 @@
             window.user = currentUser;
             if (currentUser) {
                 // Listen to Documents
-                const docsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'documents');
-                onSnapshot(docsRef, (snapshot) => {
-                    const docsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    docsData.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    window.documentsList = docsData;
-                    
+                onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'documents'), (snapshot) => {
+                    window.documentsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
                     document.getElementById('loading-indicator').classList.add('hidden');
-                    const table = document.getElementById('documents-table');
-                    const emptyState = document.getElementById('empty-state');
-                    
-                    if(docsData.length === 0) {
-                        table.classList.add('hidden');
-                        emptyState.classList.remove('hidden');
-                    } else {
-                        table.classList.remove('hidden');
-                        emptyState.classList.add('hidden');
+                    if(!document.getElementById('list-view').classList.contains('hidden')) {
                         renderList();
+                        renderReportsDashboard();
                     }
-                }, (error) => {
-                    console.error("Firestore docs error:", error);
-                });
+                }, (error) => console.error(error));
 
                 // Listen to Clients
-                const clientsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'clients');
-                onSnapshot(clientsRef, (snapshot) => {
-                    const clientsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    clientsData.sort((a, b) => a.name.localeCompare(b.name));
-                    window.clientsList = clientsData;
+                onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'clients'), (snapshot) => {
+                    window.clientsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
                     renderClientSelect();
-                }, (error) => {
-                    console.error("Firestore clients error:", error);
-                });
+                    if(!document.getElementById('list-view').classList.contains('hidden')) renderClientsDashboard();
+                }, (error) => console.error(error));
+
+                // Listen to Expenses
+                onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses'), (snapshot) => {
+                    window.expensesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
+                    if(!document.getElementById('list-view').classList.contains('hidden')) {
+                        renderExpensesDashboard();
+                        renderReportsDashboard();
+                    }
+                }, (error) => console.error(error));
             }
         });
 
+        window.renderReportsDashboard = () => {
+            const currentYear = new Date().getFullYear();
+            let qData = [
+                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }, // Q1
+                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }, // Q2
+                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }, // Q3
+                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }  // Q4
+            ];
+
+            // Calculate Income (Only Paid Invoices)
+            window.documentsList.forEach(d => {
+                const docDate = new Date(d.date);
+                if(docDate.getFullYear() === currentYear && d.type === 'Invoice' && d.status === 'paid') {
+                    const q = Math.floor(docDate.getMonth() / 3);
+                    const subtotal = d.items.reduce((sum, item) => sum + (Number(item.qty) * Number(item.rate)), 0);
+                    const discountAmount = subtotal * (Number(d.discountRate || 0) / 100);
+                    const taxableAmount = subtotal - discountAmount;
+                    const taxAmount = taxableAmount * (Number(d.taxRate || 0) / 100);
+                    
+                    qData[q].income += (taxableAmount + taxAmount);
+                    qData[q].vatCollected += taxAmount;
+                }
+            });
+
+            // Calculate Expenses
+            window.expensesList.forEach(e => {
+                const expDate = new Date(e.date);
+                if(expDate.getFullYear() === currentYear) {
+                    const q = Math.floor(expDate.getMonth() / 3);
+                    const amt = parseFloat(e.amount);
+                    qData[q].expenses += amt;
+                    if(e.includesVat) {
+                        qData[q].vatPaid += (amt - (amt / 1.05));
+                    }
+                }
+            });
+
+            // Render Chart
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            if(window.chartInstance) window.chartInstance.destroy();
+            window.chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Quarter 1 (Jan-Mar)', 'Quarter 2 (Apr-Jun)', 'Quarter 3 (Jul-Sep)', 'Quarter 4 (Oct-Dec)'],
+                    datasets: [
+                        { label: 'Income Received', data: qData.map(q => q.income), backgroundColor: '#f37021', borderRadius: 6 },
+                        { label: 'Expenses Logged', data: qData.map(q => q.expenses), backgroundColor: '#b2beb5', borderRadius: 6 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: function(val){return 'OMR '+val;} } } } }
+            });
+
+            // Render Tax Cards
+            const container = document.getElementById('tax-cards-container');
+            container.innerHTML = '';
+            qData.forEach((q, index) => {
+                const netVat = q.vatCollected - q.vatPaid;
+                const netColor = netVat > 0 ? 'text-[#f37021]' : (netVat < 0 ? 'text-green-500' : 'text-gray-800');
+                
+                container.innerHTML += `
+                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5 shadow-sm">
+                        <h4 class="font-black text-gray-800 uppercase tracking-wide border-b-2 border-gray-200 pb-2 mb-3">Quarter ${index + 1}</h4>
+                        <div class="space-y-2 text-sm font-medium text-gray-600">
+                            <div class="flex justify-between"><span>VAT Collected:</span> <span class="font-bold text-gray-800">${window.formatOMR(q.vatCollected)}</span></div>
+                            <div class="flex justify-between"><span>VAT Deductible:</span> <span class="font-bold text-gray-800">-${window.formatOMR(q.vatPaid)}</span></div>
+                            <div class="border-t border-gray-200 pt-2 flex justify-between items-center mt-2">
+                                <span class="font-bold uppercase text-[11px] tracking-wider">Net VAT Due:</span>
+                                <span class="font-black text-lg ${netColor}">${window.formatOMR(netVat)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        };
+
         window.renderList = () => {
             const tbody = document.getElementById('documents-tbody');
+            const table = document.getElementById('documents-table');
+            const emptyState = document.getElementById('empty-state');
             tbody.innerHTML = '';
             
-            window.documentsList.forEach(d => {
-                const tr = document.createElement('tr');
-                tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+            if(window.documentsList.length === 0) {
+                table.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            } else {
+                table.classList.remove('hidden');
+                emptyState.classList.add('hidden');
                 
-                const typeBadgeColor = d.type === 'Invoice' ? 'bg-[#f37021]' : 'bg-[#b2beb5]';
+                window.documentsList.forEach(d => {
+                    const isInvoice = d.type === 'Invoice';
+                    const isPaid = d.status === 'paid';
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-4">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${isInvoice ? 'bg-[#f37021]' : 'bg-[#b2beb5]'} text-white">
+                                ${d.type}
+                            </span>
+                        </td>
+                        <td class="p-4 font-bold text-gray-900">${d.number}</td>
+                        <td class="p-4 text-gray-600 font-medium">${d.date}</td>
+                        <td class="p-4 text-gray-800 font-medium truncate max-w-[200px]">${d.clientName || 'Untitled Client'}</td>
+                        <td class="p-4 text-center">
+                            ${isInvoice ? `
+                                <button onclick="toggleDocStatus('${d.id}', '${d.status}')" class="px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-colors border shadow-sm flex items-center gap-1 mx-auto
+                                ${isPaid ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-100'}">
+                                    <i class="fa-solid ${isPaid ? 'fa-check-double' : 'fa-clock'}"></i>
+                                    ${isPaid ? 'Received' : 'Pending'}
+                                </button>
+                            ` : `<span class="text-gray-400 text-xs font-bold uppercase tracking-wider">-</span>`}
+                        </td>
+                        <td class="p-4 flex justify-end gap-2 items-center">
+                            <button onclick="previewExisting('${d.id}')" class="p-2 text-gray-400 hover:text-[#f37021] rounded-lg hover:bg-orange-50 transition-colors" title="Preview">
+                                <i class="fa-solid fa-file-circle-check"></i>
+                            </button>
+                            <button onclick="editExisting('${d.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="requestDelete('document', '${d.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        };
+
+        window.toggleDocStatus = async (id, currentStatus) => {
+            if(!window.user) return;
+            const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', id), { status: newStatus });
+                showToast(`Invoice marked as ${newStatus.toUpperCase()}`);
+            } catch(err) {
+                console.error(err);
+                showToast('Error updating status');
+            }
+        };
+
+        window.renderExpensesDashboard = () => {
+            const tbody = document.getElementById('expenses-tbody');
+            const table = document.getElementById('expenses-table');
+            const emptyState = document.getElementById('expenses-empty-state');
+            tbody.innerHTML = '';
+            
+            if(window.expensesList.length === 0) {
+                table.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            } else {
+                table.classList.remove('hidden');
+                emptyState.classList.add('hidden');
                 
-                tr.innerHTML = `
-                    <td class="p-4">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${typeBadgeColor} text-white">
-                            ${d.type}
-                        </span>
-                    </td>
-                    <td class="p-4 font-bold text-gray-900">${d.number}</td>
-                    <td class="p-4 text-gray-600 font-medium">${d.date}</td>
-                    <td class="p-4 text-gray-800 font-medium">${d.clientName || 'Untitled Client'}</td>
-                    <td class="p-4 flex justify-end gap-2 items-center">
-                        <button onclick="previewExisting('${d.id}')" class="p-2 text-gray-400 hover:text-[#f37021] rounded-lg hover:bg-orange-50 transition-colors" title="Preview">
-                            <i class="fa-solid fa-file-circle-check"></i>
-                        </button>
-                        <button onclick="editExisting('${d.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                        </button>
-                        <button onclick="requestDelete('${d.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
+                window.expensesList.forEach(e => {
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-4 text-gray-900 font-bold">${e.date}</td>
+                        <td class="p-4 text-gray-700 font-medium">${e.description}</td>
+                        <td class="p-4 font-black text-[#f37021] text-right">${window.formatOMR(e.amount)}</td>
+                        <td class="p-4 text-center">
+                            ${e.includesVat ? '<i class="fa-solid fa-check text-green-500 text-lg"></i>' : '<i class="fa-solid fa-minus text-gray-300"></i>'}
+                        </td>
+                        <td class="p-4 flex justify-end">
+                            <button onclick="requestDelete('expense', '${e.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
+        };
+
+        window.openExpenseModal = () => {
+            document.getElementById('modal-expense-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('modal-expense-desc').value = '';
+            document.getElementById('modal-expense-amount').value = '';
+            document.getElementById('modal-expense-vat').checked = true;
+            document.getElementById('expense-modal').classList.remove('hidden');
+        };
+
+        window.closeExpenseModal = () => document.getElementById('expense-modal').classList.add('hidden');
+
+        window.saveExpense = async () => {
+            if(!window.user) return;
+            const date = document.getElementById('modal-expense-date').value;
+            const desc = document.getElementById('modal-expense-desc').value;
+            const amount = parseFloat(document.getElementById('modal-expense-amount').value);
+            const includesVat = document.getElementById('modal-expense-vat').checked;
+
+            if(!desc || isNaN(amount)) return showToast("Please fill all fields.");
+
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'expenses', crypto.randomUUID()), {
+                    date, description: desc, amount, includesVat
+                });
+                closeExpenseModal();
+                showToast("Expense logged successfully!");
+            } catch(err) { showToast("Error saving expense."); }
+        };
+
+        window.renderClientsDashboard = () => {
+            const tbody = document.getElementById('clients-tbody');
+            const table = document.getElementById('clients-table');
+            const emptyState = document.getElementById('clients-empty-state');
+            tbody.innerHTML = '';
+            
+            if(window.clientsList.length === 0) {
+                table.classList.add('hidden');
+                emptyState.classList.remove('hidden');
+            } else {
+                table.classList.remove('hidden');
+                emptyState.classList.add('hidden');
+                window.clientsList.forEach(c => {
+                    const tr = document.createElement('tr');
+                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+                    tr.innerHTML = `
+                        <td class="p-4 font-bold text-gray-900">${c.name}</td>
+                        <td class="p-4 text-gray-600 font-medium">${c.vat || '-'}</td>
+                        <td class="p-4 text-gray-600 font-medium">${c.cr || '-'}</td>
+                        <td class="p-4 flex justify-end gap-2 items-center">
+                            <button onclick="editClient('${c.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                                <i class="fa-solid fa-pen-to-square"></i>
+                            </button>
+                            <button onclick="requestDelete('client', '${c.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }
         };
 
         window.renderClientSelect = () => {
@@ -369,10 +778,52 @@
             });
         };
 
+        window.openClientModal = () => {
+            document.getElementById('client-modal-title').innerText = 'Add Client';
+            document.getElementById('modal-client-id').value = '';
+            document.getElementById('modal-client-name').value = '';
+            document.getElementById('modal-client-vat').value = '';
+            document.getElementById('modal-client-cr').value = '';
+            document.getElementById('modal-client-address').value = '';
+            document.getElementById('client-modal').classList.remove('hidden');
+        };
+
+        window.closeClientModal = () => document.getElementById('client-modal').classList.add('hidden');
+
+        window.editClient = (id) => {
+            const client = window.clientsList.find(c => c.id === id);
+            if(client) {
+                document.getElementById('client-modal-title').innerText = 'Edit Client';
+                document.getElementById('modal-client-id').value = client.id;
+                document.getElementById('modal-client-name').value = client.name;
+                document.getElementById('modal-client-vat').value = client.vat || '';
+                document.getElementById('modal-client-cr').value = client.cr || '';
+                document.getElementById('modal-client-address').value = client.address || '';
+                document.getElementById('client-modal').classList.remove('hidden');
+            }
+        };
+
+        window.saveModalClient = async () => {
+            if (!window.user) return;
+            const id = document.getElementById('modal-client-id').value || crypto.randomUUID();
+            const name = document.getElementById('modal-client-name').value;
+            if(!name) return showToast("Client name is required.");
+
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', id), {
+                    name,
+                    vat: document.getElementById('modal-client-vat').value,
+                    cr: document.getElementById('modal-client-cr').value,
+                    address: document.getElementById('modal-client-address').value
+                });
+                closeClientModal();
+                showToast("Client saved successfully!");
+            } catch (err) { showToast("Error saving client."); }
+        };
+
         window.renderEditorItems = () => {
             const container = document.getElementById('items-container');
             container.innerHTML = '';
-            
             window.currentDoc.items.forEach((item, index) => {
                 const total = (Number(item.qty) * Number(item.rate)).toFixed(3);
                 const div = document.createElement('div');
@@ -392,14 +843,10 @@
                     </div>
                     <div class="w-32">
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Total</label>
-                        <div class="p-2 bg-gray-100 rounded-md border border-gray-200 text-gray-800 font-bold text-right">
-                            ${total}
-                        </div>
+                        <div class="p-2 bg-gray-100 rounded-md border border-gray-200 text-gray-800 font-bold text-right">${total}</div>
                     </div>
                     <div class="pt-6">
-                        <button onclick="removeEditorItem(${index})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-50 group-hover:opacity-100">
-                            <i class="fa-solid fa-trash-can"></i>
-                        </button>
+                        <button onclick="removeEditorItem(${index})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-50 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
                     </div>
                 `;
                 container.appendChild(div);
@@ -407,71 +854,171 @@
         };
 
         window.populateEditorForm = () => {
-            document.getElementById('doc-type').value = window.currentDoc.type;
-            document.getElementById('doc-number').value = window.currentDoc.number;
-            document.getElementById('doc-date').value = window.currentDoc.date;
-            document.getElementById('doc-clientName').value = window.currentDoc.clientName;
-            document.getElementById('doc-clientVAT').value = window.currentDoc.clientVAT;
-            document.getElementById('doc-clientCR').value = window.currentDoc.clientCR;
-            document.getElementById('doc-clientAddress').value = window.currentDoc.clientAddress;
-            document.getElementById('doc-notes').value = window.currentDoc.notes;
-            document.getElementById('doc-taxRate').value = window.currentDoc.taxRate;
-            document.getElementById('doc-discountRate').value = window.currentDoc.discountRate;
-            document.getElementById('client-select').value = ""; // reset dropdown
-            
+            ['type', 'number', 'date', 'clientName', 'clientVAT', 'clientCR', 'clientAddress', 'notes', 'taxRate', 'discountRate'].forEach(k => {
+                document.getElementById(`doc-${k}`).value = window.currentDoc[k] || '';
+            });
+            document.getElementById('client-select').value = "";
             renderEditorItems();
         };
 
-        window.renderPreview = () => {
-            syncEditorToState(); // Ensure data is caught up
-            
-            const docData = window.currentDoc;
-            const subtotal = docData.items.reduce((sum, item) => sum + (Number(item.qty) * Number(item.rate)), 0);
-            const discountAmount = subtotal * (Number(docData.discountRate) / 100);
-            const taxableAmount = subtotal - discountAmount;
-            const taxAmount = taxableAmount * (Number(docData.taxRate) / 100);
-            const total = taxableAmount + taxAmount;
-
-            let itemsRows = '';
-            docData.items.forEach((item, index) => {
-                itemsRows += `
-                    <tr class="border-b border-gray-200 align-top hover:bg-gray-50">
-                        <td class="py-4 px-4 text-center text-gray-500 font-bold">${index + 1}</td>
-                        <td class="py-4 px-4 whitespace-pre-line text-gray-900 font-medium">${item.description}</td>
-                        <td class="py-4 px-4 text-center text-gray-900 font-bold">${item.qty}</td>
-                        <td class="py-4 px-4 text-right text-gray-700 font-medium">${window.formatOMR(item.rate)}</td>
-                        <td class="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30 print:bg-transparent print:text-gray-900">${window.formatOMR(Number(item.qty) * Number(item.rate))}</td>
-                    </tr>
-                `;
+        window.syncEditorToState = () => {
+            if(!window.currentDoc) return;
+            ['type', 'number', 'date', 'clientName', 'clientVAT', 'clientCR', 'clientAddress', 'notes'].forEach(k => {
+                window.currentDoc[k] = document.getElementById(`doc-${k}`).value;
             });
+            window.currentDoc.taxRate = Number(document.getElementById('doc-taxRate').value);
+            window.currentDoc.discountRate = Number(document.getElementById('doc-discountRate').value);
+        };
+        document.querySelectorAll('.doc-input').forEach(i => i.addEventListener('change', syncEditorToState));
 
+        window.getClientAcronym = (name) => {
+            if (!name) return "XXX";
+            const clean = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
+            if (!clean) return "XXX";
+            const words = clean.split(/\s+/);
+            if (words.length >= 3) return (words[0][0] + words[Math.floor(words.length/2)][0] + words[words.length-1][0]).toUpperCase();
+            if (words.length === 2) return (words[0][0] + words[1][0] + words[1][words[1].length-1]).toUpperCase();
+            if (clean.length < 3) return clean.padEnd(3, 'X').toUpperCase();
+            return (clean[0] + clean[Math.floor(clean.length/2)] + clean[clean.length-1]).toUpperCase();
+        };
+
+        window.getQuotationDate = () => {
+            const m = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+            const d = new Date();
+            return `${m[d.getMonth()]}${String(d.getDate()).padStart(2, '0')}_${d.getFullYear()}`;
+        };
+
+        window.getNextNumber = (type) => {
+            let max = 0;
+            const regex = type === 'Invoice' ? /INV-(\d+)/i : /QTN_(\d+)/i;
+            window.documentsList.forEach(d => {
+                if(d.type === type && d.number) {
+                    const match = d.number.match(regex);
+                    if(match && match[1]) max = Math.max(max, parseInt(match[1], 10));
+                }
+            });
+            return max > 0 ? max + 1 : (type === 'Invoice' ? 100 : 1);
+        };
+
+        window.triggerAutoGenerate = () => {
+            syncEditorToState();
+            const t = window.currentDoc.type;
+            const n = window.getNextNumber(t);
+            window.currentDoc.number = t === 'Invoice' ? `INV-${n}` : `QTN_${n}_${window.getQuotationDate()}_${window.getClientAcronym(window.currentDoc.clientName)}`;
+            document.getElementById('doc-number').value = window.currentDoc.number;
+            showToast('Number automatically formatted!');
+        };
+
+        window.handleTypeChange = () => { syncEditorToState(); window.triggerAutoGenerate(); };
+
+        window.createNewDocument = () => {
+            window.currentDoc = JSON.parse(JSON.stringify(defaultDoc));
+            window.currentDoc.id = crypto.randomUUID();
+            window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
+            window.currentDoc.number = `INV-${window.getNextNumber('Invoice')}`;
+            populateEditorForm();
+            switchView('edit');
+        };
+
+        window.editExisting = (id) => {
+            const doc = window.documentsList.find(d => d.id === id);
+            if(doc) { window.currentDoc = JSON.parse(JSON.stringify(doc)); populateEditorForm(); switchView('edit'); }
+        };
+
+        window.previewExisting = (id) => {
+            const doc = window.documentsList.find(d => d.id === id);
+            if(doc) { window.currentDoc = JSON.parse(JSON.stringify(doc)); populateEditorForm(); switchView('preview'); }
+        };
+
+        window.previewDocument = () => { syncEditorToState(); switchView('preview'); };
+
+        window.saveDocument = async () => {
+            if (!window.user || !window.currentDoc) return;
+            syncEditorToState();
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', window.currentDoc.id), window.currentDoc);
+                showToast('Document saved successfully!');
+                if(document.getElementById('preview-view').classList.contains('hidden')) switchView('list');
+            } catch (err) { showToast("Failed to save document."); }
+        };
+
+        window.requestDelete = (type, id) => {
+            window.itemToDelete = { type, id };
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        };
+
+        window.closeConfirmModal = () => {
+            window.itemToDelete = { type: null, id: null };
+            document.getElementById('confirm-modal').classList.add('hidden');
+        };
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            if (!window.user || !window.itemToDelete.id) return;
+            try {
+                const collName = window.itemToDelete.type === 'document' ? 'documents' : (window.itemToDelete.type === 'client' ? 'clients' : 'expenses');
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, collName, window.itemToDelete.id));
+                closeConfirmModal();
+                showToast('Record deleted.');
+            } catch (err) { showToast('Error deleting record.'); }
+        });
+
+        window.addEmptyItem = () => { window.currentDoc.items.push({ id: Date.now().toString(), description: '', qty: 1, rate: 0 }); renderEditorItems(); };
+        window.removeEditorItem = (idx) => { window.currentDoc.items.splice(idx, 1); renderEditorItems(); };
+        window.updateItemField = (idx, fld, val) => { window.currentDoc.items[idx][fld] = (fld==='qty'||fld==='rate') ? Number(val) : val; renderEditorItems(); };
+
+        window.loadSelectedClient = () => {
+            const client = window.clientsList.find(c => c.id === document.getElementById('client-select').value);
+            if(client) {
+                document.getElementById('doc-clientName').value = client.name || '';
+                document.getElementById('doc-clientVAT').value = client.vat || '';
+                document.getElementById('doc-clientCR').value = client.cr || '';
+                document.getElementById('doc-clientAddress').value = client.address || '';
+                syncEditorToState();
+                if(window.currentDoc.type === 'Quotation') window.triggerAutoGenerate();
+                showToast(`Loaded details for ${client.name}`);
+            }
+        };
+
+        window.saveClientToAddressBook = async () => {
+            syncEditorToState();
+            if (!window.user || !window.currentDoc.clientName) return showToast("Please enter a Client Name to save.");
+            const existing = window.clientsList.find(c => c.name.toLowerCase() === window.currentDoc.clientName.toLowerCase());
+            try {
+                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', existing ? existing.id : crypto.randomUUID()), {
+                    name: window.currentDoc.clientName, vat: window.currentDoc.clientVAT || '',
+                    cr: window.currentDoc.clientCR || '', address: window.currentDoc.clientAddress || ''
+                });
+                showToast("Client saved to Address Book!");
+            } catch (err) { showToast("Error saving client details."); }
+        };
+
+        window.renderPreview = () => {
+            syncEditorToState();
+            const d = window.currentDoc;
+            const subtotal = d.items.reduce((s, i) => s + (Number(i.qty) * Number(i.rate)), 0);
+            const discount = subtotal * (Number(d.discountRate) / 100);
+            const taxable = subtotal - discount;
+            const tax = taxable * (Number(d.taxRate) / 100);
+            
             const html = `
                 <!-- Header -->
                 <div class="flex justify-between items-start mb-12 border-b-[3px] border-[#f37021] pb-6">
                     <div class="max-w-[50%]">
-                        <!-- Logo Fallback Logic natively handled using onerror -->
                         <img src="./assets/logo.png" alt="Ignition Art Logo" class="h-24 object-contain mb-4" 
                              onerror="this.onerror=null; this.outerHTML='<div class=\\'mb-4\\'><h1 class=\\'text-3xl font-black text-[#f37021] tracking-tight uppercase leading-none\\'>IGNITION ART</h1><h2 class=\\'text-[13px] font-black text-[#b2beb5] uppercase tracking-widest mt-1\\'>Production & Development</h2></div>';">
-                        
                         <div class="text-xs text-gray-600 space-y-1.5 font-medium">
                             <p>CR: 1336823 | VATIN: OM1100399040</p>
                             <p>+968 98080306 | info@ignitionpro.net | www.ignitionpro.net</p>
                             <p>Sultanate of Oman, Muscat</p>
                         </div>
                     </div>
-
                     <div class="text-right">
                         <h2 class="text-4xl font-black uppercase tracking-widest text-[#b2beb5] mb-4 print:text-gray-400">
-                            ${docData.type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION'}
+                            ${d.type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION'}
                         </h2>
                         <div class="inline-block bg-[#f37021] print:bg-white print:border-2 print:border-gray-800 print:text-gray-900 text-white p-3 pr-6 rounded-l-xl text-right shadow-sm print:shadow-none">
-                            <p class="font-bold text-[13px] uppercase tracking-wider">
-                                ${docData.type === 'Invoice' ? 'Invoice Number:' : 'QTN:'} 
-                                <span class="font-normal ml-3">${docData.number}</span>
-                            </p>
-                            <p class="font-bold text-[13px] uppercase tracking-wider mt-1.5">
-                                Date: <span class="font-normal ml-3">${docData.date}</span>
-                            </p>
+                            <p class="font-bold text-[13px] uppercase tracking-wider">${d.type === 'Invoice' ? 'Invoice Number:' : 'QTN:'} <span class="font-normal ml-3">${d.number}</span></p>
+                            <p class="font-bold text-[13px] uppercase tracking-wider mt-1.5">Date: <span class="font-normal ml-3">${d.date}</span></p>
                         </div>
                     </div>
                 </div>
@@ -479,18 +1026,14 @@
                 <!-- Client Info Grid -->
                 <div class="grid grid-cols-2 gap-12 mb-10">
                     <div>
-                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">
-                            ${docData.type === 'Invoice' ? 'Bill To:' : 'To:'}
-                        </h3>
-                        <p class="font-black text-lg text-gray-900">${docData.clientName || 'N/A'}</p>
-                        ${docData.clientAddress ? `<p class="text-gray-700 whitespace-pre-line mt-1.5 font-medium leading-relaxed">${docData.clientAddress}</p>` : ''}
+                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">${d.type === 'Invoice' ? 'Bill To:' : 'To:'}</h3>
+                        <p class="font-black text-lg text-gray-900">${d.clientName || 'N/A'}</p>
+                        ${d.clientAddress ? `<p class="text-gray-700 whitespace-pre-line mt-1.5 font-medium leading-relaxed">${d.clientAddress}</p>` : ''}
                     </div>
                     <div>
-                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">
-                            Client Details:
-                        </h3>
-                        ${docData.clientCR ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">CR:</span> ${docData.clientCR}</p>` : ''}
-                        ${docData.clientVAT ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">VAT Number:</span> ${docData.clientVAT}</p>` : ''}
+                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">Client Details:</h3>
+                        ${d.clientCR ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">CR:</span> ${d.clientCR}</p>` : ''}
+                        ${d.clientVAT ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">VAT Number:</span> ${d.clientVAT}</p>` : ''}
                     </div>
                 </div>
 
@@ -506,232 +1049,53 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${itemsRows}
+                        ${d.items.map((i, idx) => `
+                        <tr class="border-b border-gray-200 align-top hover:bg-gray-50">
+                            <td class="py-4 px-4 text-center text-gray-500 font-bold">${idx + 1}</td>
+                            <td class="py-4 px-4 whitespace-pre-line text-gray-900 font-medium">${i.description}</td>
+                            <td class="py-4 px-4 text-center text-gray-900 font-bold">${i.qty}</td>
+                            <td class="py-4 px-4 text-right text-gray-700 font-medium">${window.formatOMR(i.rate)}</td>
+                            <td class="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30 print:bg-transparent print:text-gray-900">${window.formatOMR(Number(i.qty) * Number(i.rate))}</td>
+                        </tr>`).join('')}
                     </tbody>
                 </table>
 
                 <!-- Totals Section -->
                 <div class="flex justify-end mb-12">
                     <div class="w-80 bg-gray-50 print:bg-white print:border-gray-300 p-5 rounded-xl border border-[#b2beb5]">
-                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
-                            <span>Subtotal</span>
-                            <span class="font-bold">${window.formatOMR(subtotal)}</span>
-                        </div>
-                        ${Number(docData.discountRate) > 0 ? `
-                        <div class="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium">
-                            <span>Discount (${docData.discountRate}%)</span>
-                            <span class="font-bold">-${window.formatOMR(discountAmount)}</span>
-                        </div>` : ''}
-                        ${Number(docData.taxRate) > 0 ? `
-                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
-                            <span>VAT (${docData.taxRate}%)</span>
-                            <span class="font-bold">${window.formatOMR(taxAmount)}</span>
-                        </div>` : ''}
-                        <div class="flex justify-between py-3 text-xl font-black text-[#f37021] print:text-gray-900 border-t-[3px] border-[#b2beb5] print:border-gray-800 mt-2">
-                            <span>Total</span>
-                            <span>${window.formatOMR(total)}</span>
-                        </div>
+                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700"><span>Subtotal</span><span class="font-bold">${window.formatOMR(subtotal)}</span></div>
+                        ${Number(d.discountRate) > 0 ? `<div class="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium"><span>Discount (${d.discountRate}%)</span><span class="font-bold">-${window.formatOMR(discount)}</span></div>` : ''}
+                        ${Number(d.taxRate) > 0 ? `<div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700"><span>VAT (${d.taxRate}%)</span><span class="font-bold">${window.formatOMR(tax)}</span></div>` : ''}
+                        <div class="flex justify-between py-3 text-xl font-black text-[#f37021] print:text-gray-900 border-t-[3px] border-[#b2beb5] print:border-gray-800 mt-2"><span>Total</span><span>${window.formatOMR(taxable + tax)}</span></div>
                     </div>
                 </div>
 
                 <!-- Footer Details -->
                 <div class="grid grid-cols-2 gap-12 text-xs">
-                    <!-- Notes / Terms -->
                     <div>
                         <h4 class="font-bold text-[#f37021] print:text-gray-600 uppercase tracking-wider mb-2 border-b-[2px] border-[#b2beb5] pb-1">Terms & Conditions</h4>
-                        <p class="whitespace-pre-line text-gray-700 leading-relaxed font-medium">
-                            ${docData.notes}
-                        </p>
-                        ${docData.type === 'Invoice' ? `
-                        <p class="whitespace-pre-line text-gray-700 leading-relaxed mt-3 font-bold italic border-l-4 border-[#f37021] pl-3">
-                            * If any damage caused by mishandling or improper use occurred, client should pay the cost of the entire device.
-                        </p>` : ''}
+                        <p class="whitespace-pre-line text-gray-700 leading-relaxed font-medium">${d.notes}</p>
+                        ${d.type === 'Invoice' ? `<p class="whitespace-pre-line text-gray-700 leading-relaxed mt-3 font-bold italic border-l-4 border-[#f37021] pl-3">* If any damage caused by mishandling or improper use occurred, client should pay the cost of the entire device.</p>` : ''}
                     </div>
-
-                    <!-- Bank Details -->
                     <div class="bg-white p-5 rounded-xl border-2 border-[#b2beb5] print:border-gray-300">
                         <h4 class="font-bold text-[#f37021] print:text-gray-600 uppercase tracking-wider mb-3 border-b-[2px] border-[#b2beb5] pb-1">Bank Details</h4>
                         <table class="w-full text-gray-800">
                             <tbody>
-                                <tr class="border-b border-gray-100">
-                                    <td class="py-2 font-bold w-32 uppercase text-[11px] tracking-wider text-gray-500">Bank Name</td>
-                                    <td class="py-2 font-bold">BANK DHOFAR</td>
-                                </tr>
-                                <tr class="border-b border-gray-100">
-                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Account Name</td>
-                                    <td class="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td>
-                                </tr>
-                                <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10 print:bg-transparent">
-                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-[#f37021] print:text-gray-800 pl-2 print:pl-0">Account No.</td>
-                                    <td class="py-2 font-black text-[#f37021] print:text-gray-900 text-sm">01041415893001</td>
-                                </tr>
-                                <tr class="border-b border-gray-100">
-                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Branch</td>
-                                    <td class="py-2 font-bold">AL-KHOUD</td>
-                                </tr>
-                                <tr>
-                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Beneficiary No</td>
-                                    <td class="py-2 font-bold">63651601</td>
-                                </tr>
+                                <tr class="border-b border-gray-100"><td class="py-2 font-bold w-32 uppercase text-[11px] tracking-wider text-gray-500">Bank Name</td><td class="py-2 font-bold">BANK DHOFAR</td></tr>
+                                <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Account Name</td><td class="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
+                                <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10 print:bg-transparent"><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-[#f37021] print:text-gray-800 pl-2 print:pl-0">Account No.</td><td class="py-2 font-black text-[#f37021] print:text-gray-900 text-sm">01041415893001</td></tr>
+                                <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Branch</td><td class="py-2 font-bold">AL-KHOUD</td></tr>
+                                <tr><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Beneficiary No</td><td class="py-2 font-bold">63651601</td></tr>
                             </tbody>
                         </table>
                     </div>
                 </div>
             `;
-            
             document.getElementById('print-container').innerHTML = html;
         };
 
-        window.syncEditorToState = () => {
-            if(!window.currentDoc) return;
-            window.currentDoc.type = document.getElementById('doc-type').value;
-            window.currentDoc.number = document.getElementById('doc-number').value;
-            window.currentDoc.date = document.getElementById('doc-date').value;
-            window.currentDoc.clientName = document.getElementById('doc-clientName').value;
-            window.currentDoc.clientVAT = document.getElementById('doc-clientVAT').value;
-            window.currentDoc.clientCR = document.getElementById('doc-clientCR').value;
-            window.currentDoc.clientAddress = document.getElementById('doc-clientAddress').value;
-            window.currentDoc.notes = document.getElementById('doc-notes').value;
-            window.currentDoc.taxRate = Number(document.getElementById('doc-taxRate').value);
-            window.currentDoc.discountRate = Number(document.getElementById('doc-discountRate').value);
-        };
-
-        // Bind global listener to inputs to sync immediately on change
-        document.querySelectorAll('.doc-input').forEach(input => {
-            input.addEventListener('change', syncEditorToState);
-        });
-
-        window.createNewDocument = () => {
-            const num = `INV-${Date.now().toString().slice(-6)}`;
-            window.currentDoc = JSON.parse(JSON.stringify(defaultDoc)); // Deep copy
-            window.currentDoc.id = crypto.randomUUID();
-            window.currentDoc.number = num;
-            window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
-            
-            populateEditorForm();
-            switchView('edit');
-        };
-
-        window.editExisting = (id) => {
-            const docToEdit = window.documentsList.find(d => d.id === id);
-            if(docToEdit) {
-                window.currentDoc = JSON.parse(JSON.stringify(docToEdit));
-                populateEditorForm();
-                switchView('edit');
-            }
-        };
-
-        window.previewExisting = (id) => {
-            const docToPreview = window.documentsList.find(d => d.id === id);
-            if(docToPreview) {
-                window.currentDoc = JSON.parse(JSON.stringify(docToPreview));
-                populateEditorForm(); // populates internal state
-                switchView('preview');
-            }
-        };
-
-        window.previewDocument = () => {
-            syncEditorToState();
-            switchView('preview');
-        };
-
-        window.saveDocument = async () => {
-            if (!window.user || !window.currentDoc) return;
-            syncEditorToState(); // Ensure last inputs are captured
-            try {
-                const docRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', window.currentDoc.id);
-                await setDoc(docRef, window.currentDoc);
-                showToast('Document saved successfully!');
-                if(!document.getElementById('preview-view').classList.contains('hidden')){
-                    // We are in preview mode, stay here
-                } else {
-                    switchView('list');
-                }
-            } catch (err) {
-                console.error("Error saving:", err);
-                showToast("Failed to save document.");
-            }
-        };
-
-        window.requestDelete = (id) => {
-            window.documentToDelete = id;
-            document.getElementById('confirm-modal').classList.remove('hidden');
-        };
-
-        window.closeConfirmModal = () => {
-            window.documentToDelete = null;
-            document.getElementById('confirm-modal').classList.add('hidden');
-        };
-
-        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
-            if (!window.user || !window.documentToDelete) return;
-            try {
-                await deleteDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', window.documentToDelete));
-                closeConfirmModal();
-                showToast('Document deleted.');
-            } catch (err) {
-                console.error("Delete error:", err);
-                showToast('Error deleting document.');
-            }
-        });
-
-        // Items Logic
-        window.addEmptyItem = () => {
-            window.currentDoc.items.push({ id: Date.now().toString(), description: '', qty: 1, rate: 0 });
-            renderEditorItems();
-        };
-
-        window.removeEditorItem = (index) => {
-            window.currentDoc.items.splice(index, 1);
-            renderEditorItems();
-        };
-
-        window.updateItemField = (index, field, value) => {
-            if(field === 'qty' || field === 'rate') value = Number(value);
-            window.currentDoc.items[index][field] = value;
-            renderEditorItems(); // re-renders to show new total instantly
-        };
-
-        // Client Address Book Logic
-        window.loadSelectedClient = () => {
-            const val = document.getElementById('client-select').value;
-            const client = window.clientsList.find(c => c.id === val);
-            if(client) {
-                document.getElementById('doc-clientName').value = client.name || '';
-                document.getElementById('doc-clientVAT').value = client.vat || '';
-                document.getElementById('doc-clientCR').value = client.cr || '';
-                document.getElementById('doc-clientAddress').value = client.address || '';
-                syncEditorToState();
-                showToast(`Loaded details for ${client.name}`);
-            }
-        };
-
-        window.saveClientToAddressBook = async () => {
-            syncEditorToState();
-            if (!window.user || !window.currentDoc.clientName) {
-                showToast("Please enter a Client Name to save.");
-                return;
-            }
-            
-            // Deduplication
-            const existingClient = window.clientsList.find(c => c.name.toLowerCase() === window.currentDoc.clientName.toLowerCase());
-            const clientIdToSave = existingClient ? existingClient.id : crypto.randomUUID();
-
-            try {
-                const clientRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', clientIdToSave);
-                await setDoc(clientRef, {
-                    name: window.currentDoc.clientName,
-                    vat: window.currentDoc.clientVAT || '',
-                    cr: window.currentDoc.clientCR || '',
-                    address: window.currentDoc.clientAddress || ''
-                });
-                showToast("Client saved to Address Book!");
-            } catch (err) {
-                console.error("Error saving client:", err);
-                showToast("Error saving client details.");
-            }
-        };
-
+        // Init view
+        toggleDashboardTab('reports');
     </script>
 </body>
 </html>
