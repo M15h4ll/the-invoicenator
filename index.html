@@ -1,724 +1,737 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  FileText, Plus, Save, Printer, ArrowLeft, Trash2, Edit,
-  FileCheck2, Briefcase, PlusCircle, UserPlus, Users, AlertCircle, CheckCircle2
-} from 'lucide-react';
-import {
-  initializeApp
-} from 'firebase/app';
-import {
-  getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged
-} from 'firebase/auth';
-import {
-  getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc
-} from 'firebase/firestore';
-
-// --- Firebase Initialization ---
-const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'ignition-invoice-app';
-
-// --- Default Document Template ---
-const defaultDoc = {
-  id: '',
-  type: 'Invoice', // 'Invoice' or 'Quotation'
-  number: '',
-  date: new Date().toISOString().split('T')[0],
-  clientName: '',
-  clientVAT: '',
-  clientCR: '',
-  clientAddress: '',
-  items: [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }],
-  taxRate: 5,
-  discountRate: 0,
-  notes: 'Service Terms:\n- Ignition art production and development have the right to use the project output for company profile and marketing purposes.\n\nPayment Terms:\n50% Upon agreement\n50% Upon delivery'
-};
-
-const formatOMR = (amount) => {
-  return `OMR ${parseFloat(amount).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
-};
-
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [documents, setDocuments] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [currentDoc, setCurrentDoc] = useState(null);
-  const [view, setView] = useState('list'); // 'list', 'edit', 'preview'
-  const [loading, setLoading] = useState(true);
-  
-  // Custom UI Notifications (Replacing alert/confirm)
-  const [toastMessage, setToastMessage] = useState('');
-  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(''), 3000);
-  };
-
-  // --- Auth Effect ---
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ignition Art Invoice Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Print specific overrides to ensure the PDF looks perfect */
+        @media print {
+            body { background-color: white !important; }
+            .print-hidden { display: none !important; }
+            .print-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+            @page { margin: 0; }
         }
-      } catch (err) {
-        console.error("Auth error:", err);
-      }
-    };
-    initAuth();
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-900 selection:bg-[#f37021] selection:text-white min-h-screen">
 
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // --- Data Fetching Effect ---
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-
-    // Listen to Documents
-    const docsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'documents');
-    const unsubscribeDocs = onSnapshot(docsRef, (snapshot) => {
-      const docsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      docsData.sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date
-      setDocuments(docsData);
-      setLoading(false);
-    }, (error) => {
-      console.error("Firestore error:", error);
-      setLoading(false);
-    });
-
-    // Listen to Clients (Address Book)
-    const clientsRef = collection(db, 'artifacts', appId, 'users', user.uid, 'clients');
-    const unsubscribeClients = onSnapshot(clientsRef, (snapshot) => {
-      const clientsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      clientsData.sort((a, b) => a.name.localeCompare(b.name));
-      setClients(clientsData);
-    }, (error) => {
-      console.error("Firestore clients error:", error);
-    });
-
-    return () => {
-      unsubscribeDocs();
-      unsubscribeClients();
-    };
-  }, [user]);
-
-  // --- Actions ---
-  const handleCreateNew = () => {
-    const defaultNumber = `INV-${Date.now().toString().slice(-6)}`;
-    setCurrentDoc({ ...defaultDoc, id: crypto.randomUUID(), number: defaultNumber });
-    setView('edit');
-  };
-
-  const handleEdit = (doc) => {
-    setCurrentDoc({ ...doc });
-    setView('edit');
-  };
-
-  const requestDelete = (id) => {
-    setConfirmDeleteId(id);
-  };
-
-  const executeDelete = async (id) => {
-    if (!user) return;
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'users', user.uid, 'documents', id));
-      setConfirmDeleteId(null);
-      showToast('Document deleted successfully.');
-    } catch (err) {
-      console.error("Delete error:", err);
-      showToast('Error deleting document.');
-    }
-  };
-
-  const handleSave = async () => {
-    if (!user || !currentDoc) return;
-    try {
-      const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'documents', currentDoc.id);
-      await setDoc(docRef, currentDoc);
-      showToast('Document saved successfully!');
-      setView('list');
-    } catch (err) {
-      console.error("Error saving:", err);
-      showToast("Failed to save document.");
-    }
-  };
-
-  const handleSaveClient = async () => {
-    if (!user || !currentDoc.clientName) {
-      showToast("Please enter a Client Name to save.");
-      return;
-    }
-    
-    // Simple deduplication logic
-    const existingClient = clients.find(c => c.name.toLowerCase() === currentDoc.clientName.toLowerCase());
-    const clientIdToSave = existingClient ? existingClient.id : crypto.randomUUID();
-
-    try {
-      const clientRef = doc(db, 'artifacts', appId, 'users', user.uid, 'clients', clientIdToSave);
-      await setDoc(clientRef, {
-        name: currentDoc.clientName,
-        vat: currentDoc.clientVAT || '',
-        cr: currentDoc.clientCR || '',
-        address: currentDoc.clientAddress || ''
-      });
-      showToast("Client saved to Address Book!");
-    } catch (err) {
-      console.error("Error saving client:", err);
-      showToast("Error saving client details.");
-    }
-  };
-
-  const handleSelectClient = (clientId) => {
-    if (!clientId) return;
-    const selected = clients.find(c => c.id === clientId);
-    if (selected) {
-      setCurrentDoc(prev => ({
-        ...prev,
-        clientName: selected.name || '',
-        clientVAT: selected.vat || '',
-        clientCR: selected.cr || '',
-        clientAddress: selected.address || ''
-      }));
-      showToast(`Loaded details for ${selected.name}`);
-    }
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  const updateCurrentDoc = (field, value) => {
-    setCurrentDoc(prev => ({ ...prev, [field]: value }));
-  };
-
-  const updateItem = (index, field, value) => {
-    const newItems = [...currentDoc.items];
-    newItems[index][field] = value;
-    setCurrentDoc(prev => ({ ...prev, items: newItems }));
-  };
-
-  const addItem = () => {
-    setCurrentDoc(prev => ({
-      ...prev,
-      items: [...prev.items, { id: Date.now().toString(), description: '', qty: 1, rate: 0 }]
-    }));
-  };
-
-  const removeItem = (index) => {
-    const newItems = [...currentDoc.items];
-    newItems.splice(index, 1);
-    setCurrentDoc(prev => ({ ...prev, items: newItems }));
-  };
-
-  // --- Subcomponents ---
-
-  const ListView = () => (
-    <div className="p-6 max-w-6xl mx-auto print:hidden">
-      <div className="flex justify-between items-center mb-8 bg-[#1f2937] p-8 rounded-2xl shadow-xl text-white border-b-4 border-[#f37021]">
-        <div>
-          <h1 className="text-3xl font-black tracking-tight flex items-center gap-3 uppercase">
-            <Briefcase className="w-8 h-8 text-[#f37021]" />
-            Ignition Docs
-          </h1>
-          <p className="text-[#b2beb5] mt-2 font-medium">Manage Invoices, Quotations, and Clients</p>
+    <!-- Toast Notification -->
+    <div id="toast-container" class="fixed top-6 right-6 z-50 transition-all duration-300 transform translate-y-[-100%] opacity-0">
+        <div class="bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3">
+            <i class="fa-solid fa-circle-check text-green-400"></i>
+            <span id="toast-message">Notification</span>
         </div>
-        <button
-          onClick={handleCreateNew}
-          className="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg"
-        >
-          <Plus className="w-5 h-5" /> New Document
-        </button>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-10 text-center text-gray-500 font-medium animate-pulse">Synchronizing with cloud...</div>
-        ) : documents.length === 0 ? (
-          <div className="p-16 text-center">
-            <FileText className="w-16 h-16 text-[#b2beb5] mx-auto mb-4 opacity-50" />
-            <h3 className="text-xl font-bold text-gray-700">No documents yet</h3>
-            <p className="text-gray-500 mt-2">Create your first invoice or quotation to get started.</p>
-          </div>
-        ) : (
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
-                <th className="p-4 font-bold">Type</th>
-                <th className="p-4 font-bold">Number</th>
-                <th className="p-4 font-bold">Date</th>
-                <th className="p-4 font-bold">Client</th>
-                <th className="p-4 font-bold text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map((d) => (
-                <tr key={d.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                  <td className="p-4">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${d.type === 'Invoice' ? 'bg-[#f37021] text-white' : 'bg-[#b2beb5] text-white'}`}>
-                      {d.type}
-                    </span>
-                  </td>
-                  <td className="p-4 font-bold text-gray-900">{d.number}</td>
-                  <td className="p-4 text-gray-600 font-medium">{d.date}</td>
-                  <td className="p-4 text-gray-800 font-medium">{d.clientName || 'Untitled Client'}</td>
-                  <td className="p-4 flex justify-end gap-2 items-center">
-                    <button onClick={() => { setCurrentDoc(d); setView('preview'); }} className="p-2 text-gray-400 hover:text-[#f37021] rounded-lg hover:bg-orange-50 transition-colors" title="Preview">
-                      <FileCheck2 className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => handleEdit(d)} className="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
-                      <Edit className="w-5 h-5" />
-                    </button>
-                    {confirmDeleteId === d.id ? (
-                      <div className="flex items-center gap-2 bg-red-50 p-1 rounded-lg border border-red-200">
-                        <span className="text-xs font-bold text-red-600 pl-2">Confirm?</span>
-                        <button onClick={() => executeDelete(d.id)} className="bg-red-500 text-white px-3 py-1 rounded text-xs font-bold hover:bg-red-600">Yes</button>
-                        <button onClick={() => setConfirmDeleteId(null)} className="bg-gray-300 text-gray-700 px-3 py-1 rounded text-xs font-bold hover:bg-gray-400">No</button>
-                      </div>
-                    ) : (
-                      <button onClick={() => requestDelete(d.id)} className="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
     </div>
-  );
 
-  const EditorView = () => (
-    <div className="p-6 max-w-5xl mx-auto print:hidden">
-      <div className="flex justify-between items-center mb-6">
-        <button onClick={() => setView('list')} className="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
-          <ArrowLeft className="w-5 h-5" /> Back to Dashboard
-        </button>
-        <div className="flex gap-3">
-          <button onClick={() => setView('preview')} className="bg-[#b2beb5] hover:bg-gray-400 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm">
-            <FileCheck2 className="w-5 h-5" /> Preview Document
-          </button>
-          <button onClick={handleSave} className="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm">
-            <Save className="w-5 h-5" /> Save to Cloud
-          </button>
+    <!-- Confirm Delete Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full text-center mx-4">
+            <i class="fa-solid fa-triangle-exclamation text-red-500 text-4xl mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">Delete Document?</h3>
+            <p class="text-gray-600 mb-6 font-medium">This action cannot be undone. Are you sure you want to delete this document?</p>
+            <div class="flex justify-center gap-4">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
+                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg font-bold text-white transition-colors">Yes, Delete</button>
+            </div>
         </div>
-      </div>
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8">
-        {/* Basic Settings */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Document Type</label>
-            <select
-              value={currentDoc.type}
-              onChange={(e) => updateCurrentDoc('type', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium"
-            >
-              <option value="Invoice">Tax Invoice</option>
-              <option value="Quotation">Quotation</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Document Number</label>
-            <input
-              type="text"
-              value={currentDoc.number}
-              onChange={(e) => updateCurrentDoc('number', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium"
-              placeholder="e.g. #104 or QT38"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1">Date</label>
-            <input
-              type="date"
-              value={currentDoc.date}
-              onChange={(e) => updateCurrentDoc('date', e.target.value)}
-              className="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium"
-            />
-          </div>
-        </div>
-
-        {/* Client Details */}
-        <div className="p-6 bg-[#b2beb5] bg-opacity-10 rounded-xl border border-[#b2beb5] border-opacity-30">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-            <h3 className="text-lg font-black text-gray-800 flex items-center gap-2 uppercase tracking-wide">
-              <Users className="w-5 h-5 text-[#f37021]" /> Client Information
-            </h3>
-            <div className="flex flex-wrap gap-3 items-center w-full md:w-auto">
-              <select
-                onChange={(e) => handleSelectClient(e.target.value)}
-                className="text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] bg-white font-medium flex-grow md:flex-grow-0 min-w-[200px]"
-                defaultValue=""
-              >
-                <option value="" disabled>Load from Address Book...</option>
-                {clients.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={handleSaveClient}
-                className="text-sm bg-white text-[#f37021] hover:bg-[#f37021] hover:text-white px-4 py-2.5 rounded-lg font-bold transition-colors border-2 border-[#f37021] flex items-center gap-2 shadow-sm"
-                title="Save current details to Address Book"
-              >
-                <UserPlus className="w-4 h-4" /> Save Client
-              </button>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Client / Company Name</label>
-              <input
-                type="text"
-                value={currentDoc.clientName}
-                onChange={(e) => updateCurrentDoc('clientName', e.target.value)}
-                className="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">VAT Number (Optional)</label>
-              <input
-                type="text"
-                value={currentDoc.clientVAT}
-                onChange={(e) => updateCurrentDoc('clientVAT', e.target.value)}
-                className="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">CR Number (Optional)</label>
-              <input
-                type="text"
-                value={currentDoc.clientCR}
-                onChange={(e) => updateCurrentDoc('clientCR', e.target.value)}
-                className="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <label className="block text-sm font-bold text-gray-700 mb-1">Address / P.O. Box</label>
-              <textarea
-                value={currentDoc.clientAddress}
-                onChange={(e) => updateCurrentDoc('clientAddress', e.target.value)}
-                className="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium"
-                rows="2"
-              ></textarea>
-            </div>
-          </div>
-        </div>
-
-        {/* Items */}
-        <div>
-          <h3 className="text-lg font-black text-gray-800 mb-4 uppercase tracking-wide flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-[#f37021]" /> Services & Line Items
-          </h3>
-          <div className="space-y-3">
-            {currentDoc.items.map((item, index) => (
-              <div key={item.id} className="flex gap-4 items-start bg-white border-2 border-gray-100 p-4 rounded-xl shadow-sm hover:border-[#b2beb5] transition-colors group">
-                <div className="flex-grow">
-                  <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Description</label>
-                  <textarea
-                    value={item.description}
-                    onChange={(e) => updateItem(index, 'description', e.target.value)}
-                    className="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium transition-colors"
-                    rows="2"
-                    placeholder="e.g. 30 seconds video for LED billboards"
-                  ></textarea>
-                </div>
-                <div className="w-24">
-                  <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Qty</label>
-                  <input
-                    type="number"
-                    value={item.qty}
-                    onChange={(e) => updateItem(index, 'qty', Number(e.target.value))}
-                    className="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium text-center transition-colors"
-                    min="1"
-                  />
-                </div>
-                <div className="w-32">
-                  <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Rate (OMR)</label>
-                  <input
-                    type="number"
-                    value={item.rate}
-                    onChange={(e) => updateItem(index, 'rate', Number(e.target.value))}
-                    className="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium text-right transition-colors"
-                    step="0.001"
-                  />
-                </div>
-                <div className="w-32">
-                  <label className="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Total</label>
-                  <div className="p-2 bg-gray-100 rounded-md border border-gray-200 text-gray-800 font-bold text-right">
-                    {(item.qty * item.rate).toFixed(3)}
-                  </div>
-                </div>
-                <div className="pt-6">
-                  <button onClick={() => removeItem(index)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-50 group-hover:opacity-100">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <button onClick={addItem} className="mt-4 flex items-center gap-2 bg-orange-50 text-[#f37021] hover:bg-[#f37021] hover:text-white border border-[#f37021] transition-colors font-black px-4 py-2 rounded-lg uppercase tracking-wide text-sm shadow-sm">
-            <PlusCircle className="w-5 h-5" /> Add Service Line
-          </button>
-        </div>
-
-        {/* Totals & Notes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 border-t-2 border-gray-100 pt-8">
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Terms & Conditions</label>
-            <textarea
-              value={currentDoc.notes}
-              onChange={(e) => updateCurrentDoc('notes', e.target.value)}
-              className="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-[#f37021] h-48 font-medium leading-relaxed bg-gray-50 focus:bg-white transition-colors"
-            ></textarea>
-          </div>
-          <div className="bg-[#b2beb5] bg-opacity-10 p-6 rounded-2xl border border-[#b2beb5] space-y-4">
-            <h4 className="font-bold text-gray-800 uppercase tracking-wide mb-2 flex items-center gap-2">Calculations</h4>
-            <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-              <span className="text-gray-700 font-bold">Tax Rate (VAT %)</span>
-              <input
-                type="number"
-                value={currentDoc.taxRate}
-                onChange={(e) => updateCurrentDoc('taxRate', Number(e.target.value))}
-                className="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021]"
-              />
-            </div>
-            <div className="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
-              <span className="text-gray-700 font-bold">Discount (%)</span>
-              <input
-                type="number"
-                value={currentDoc.discountRate}
-                onChange={(e) => updateCurrentDoc('discountRate', Number(e.target.value))}
-                className="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021]"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
-  );
 
-  const PreviewLayout = () => {
-    // Local state for logo image fallback
-    const [logoError, setLogoError] = useState(false);
-
-    // Calculations
-    const subtotal = currentDoc.items.reduce((sum, item) => sum + (item.qty * item.rate), 0);
-    const discountAmount = subtotal * (currentDoc.discountRate / 100);
-    const taxableAmount = subtotal - discountAmount;
-    const taxAmount = taxableAmount * (currentDoc.taxRate / 100);
-    const total = taxableAmount + taxAmount;
-
-    return (
-      <div className="p-4 md:p-8 max-w-4xl mx-auto print:max-w-none print:p-0 bg-gray-100 print:bg-white min-h-screen">
-        
-        {/* --- Toolbar --- */}
-        <div className="print:hidden flex justify-between items-center mb-6">
-          <button onClick={() => setView('edit')} className="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
-            <Edit className="w-5 h-5" /> Back to Editor
-          </button>
-          <div className="flex gap-3">
-             <button onClick={handleSave} className="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-md">
-              <Save className="w-5 h-5" /> Save Data
+    <!-- === LIST VIEW === -->
+    <div id="list-view" class="p-6 max-w-6xl mx-auto print-hidden">
+        <div class="flex justify-between items-center mb-8 bg-[#1f2937] p-8 rounded-2xl shadow-xl text-white border-b-4 border-[#f37021]">
+            <div>
+                <h1 class="text-3xl font-black tracking-tight flex items-center gap-3 uppercase">
+                    <i class="fa-solid fa-briefcase text-[#f37021]"></i>
+                    Ignition Docs
+                </h1>
+                <p class="text-[#b2beb5] mt-2 font-medium">Manage Invoices, Quotations, and Clients</p>
+            </div>
+            <button onclick="createNewDocument()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                <i class="fa-solid fa-plus"></i> New Document
             </button>
-            <button onClick={handlePrint} className="bg-[#f37021] hover:bg-[#d95d18] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-md">
-              <Printer className="w-5 h-5" /> Download / Print PDF
-            </button>
-          </div>
         </div>
 
-        {/* --- ACTUAL DOCUMENT FOR PRINTING --- */}
-        <div className="bg-white p-10 md:p-12 shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none min-h-[1056px] text-gray-900 text-sm font-sans relative">
-          
-          {/* Header */}
-          <div className="flex justify-between items-start mb-12 border-b-[3px] border-[#f37021] pb-6">
-            <div className="max-w-[50%]">
-              {/* Logo Logic */}
-              {!logoError ? (
-                <img 
-                  src="./assets/logo.png" 
-                  alt="Ignition Art Logo" 
-                  className="h-24 object-contain mb-4"
-                  onError={() => setLogoError(true)}
-                />
-              ) : (
-                <div className="mb-4">
-                  <h1 className="text-3xl font-black text-[#f37021] tracking-tight uppercase leading-none">
-                    IGNITION ART
-                  </h1>
-                  <h2 className="text-[13px] font-black text-[#b2beb5] uppercase tracking-widest mt-1">
-                    Production & Development
-                  </h2>
-                </div>
-              )}
-              
-              <div className="text-xs text-gray-600 space-y-1.5 font-medium">
-                <p>CR: 1336823 | VATIN: OM1100399040</p>
-                <p>+968 98080306 | info@ignitionpro.net | www.ignitionpro.net</p>
-                <p>Sultanate of Oman, Muscat</p>
-              </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+            <div id="loading-indicator" class="p-10 text-center text-gray-500 font-medium animate-pulse">
+                Synchronizing with cloud...
             </div>
-
-            <div className="text-right">
-              <h2 className="text-4xl font-black uppercase tracking-widest text-[#b2beb5] mb-4">
-                {currentDoc.type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION'}
-              </h2>
-              <div className="inline-block bg-[#f37021] text-white p-3 pr-6 rounded-l-xl text-right shadow-sm">
-                <p className="font-bold text-[13px] uppercase tracking-wider">
-                  {currentDoc.type === 'Invoice' ? 'Invoice Number:' : 'QTN:'} 
-                  <span className="font-normal ml-3">{currentDoc.number}</span>
-                </p>
-                <p className="font-bold text-[13px] uppercase tracking-wider mt-1.5">
-                  Date: <span className="font-normal ml-3">{currentDoc.date}</span>
-                </p>
-              </div>
+            <div id="empty-state" class="p-16 text-center hidden">
+                <i class="fa-solid fa-file-lines text-6xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-bold text-gray-700">No documents yet</h3>
+                <p class="text-gray-500 mt-2">Create your first invoice or quotation to get started.</p>
             </div>
-          </div>
-
-          {/* Client Info Grid */}
-          <div className="grid grid-cols-2 gap-12 mb-10">
-            <div>
-              <h3 className="font-bold text-[#f37021] mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">
-                {currentDoc.type === 'Invoice' ? 'Bill To:' : 'To:'}
-              </h3>
-              <p className="font-black text-lg text-gray-900">{currentDoc.clientName || 'N/A'}</p>
-              {currentDoc.clientAddress && (
-                <p className="text-gray-700 whitespace-pre-line mt-1.5 font-medium leading-relaxed">{currentDoc.clientAddress}</p>
-              )}
-            </div>
-            <div>
-               <h3 className="font-bold text-[#f37021] mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">
-                Client Details:
-              </h3>
-               {currentDoc.clientCR && <p className="font-medium mt-1.5"><span className="font-bold text-gray-800">CR:</span> {currentDoc.clientCR}</p>}
-               {currentDoc.clientVAT && <p className="font-medium mt-1.5"><span className="font-bold text-gray-800">VAT Number:</span> {currentDoc.clientVAT}</p>}
-            </div>
-          </div>
-
-          {/* Items Table */}
-          <table className="w-full mb-8 text-left border-collapse">
-            <thead>
-              <tr className="bg-[#b2beb5] text-white text-xs uppercase tracking-wider">
-                <th className="py-3 px-4 font-bold w-12 text-center border-l-4 border-[#f37021]">S.No.</th>
-                <th className="py-3 px-4 font-bold">Description</th>
-                <th className="py-3 px-4 font-bold w-24 text-center">Qty</th>
-                <th className="py-3 px-4 font-bold w-32 text-right">Unit Rate</th>
-                <th className="py-3 px-4 font-bold w-36 text-right">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {currentDoc.items.map((item, index) => (
-                <tr key={item.id} className="border-b border-gray-200 align-top hover:bg-gray-50">
-                  <td className="py-4 px-4 text-center text-gray-500 font-bold">{index + 1}</td>
-                  <td className="py-4 px-4 whitespace-pre-line text-gray-900 font-medium">{item.description}</td>
-                  <td className="py-4 px-4 text-center text-gray-900 font-bold">{item.qty}</td>
-                  <td className="py-4 px-4 text-right text-gray-700 font-medium">{formatOMR(item.rate)}</td>
-                  <td className="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30">{formatOMR(item.qty * item.rate)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {/* Totals Section */}
-          <div className="flex justify-end mb-12">
-            <div className="w-80 bg-gray-50 p-5 rounded-xl border border-[#b2beb5]">
-              <div className="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
-                <span>Subtotal</span>
-                <span className="font-bold">{formatOMR(subtotal)}</span>
-              </div>
-              {currentDoc.discountRate > 0 && (
-                <div className="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium">
-                  <span>Discount ({currentDoc.discountRate}%)</span>
-                  <span className="font-bold">-{formatOMR(discountAmount)}</span>
-                </div>
-              )}
-              {currentDoc.taxRate > 0 && (
-                <div className="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
-                  <span>VAT ({currentDoc.taxRate}%)</span>
-                  <span className="font-bold">{formatOMR(taxAmount)}</span>
-                </div>
-              )}
-              <div className="flex justify-between py-3 text-xl font-black text-[#f37021] border-t-[3px] border-[#b2beb5] mt-2">
-                <span>Total</span>
-                <span>{formatOMR(total)}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer Details */}
-          <div className="grid grid-cols-2 gap-12 text-xs">
-            {/* Notes / Terms */}
-            <div>
-              <h4 className="font-bold text-[#f37021] uppercase tracking-wider mb-2 border-b-[2px] border-[#b2beb5] pb-1">Terms & Conditions</h4>
-              <p className="whitespace-pre-line text-gray-700 leading-relaxed font-medium">
-                {currentDoc.notes}
-              </p>
-              {currentDoc.type === 'Invoice' && (
-                 <p className="whitespace-pre-line text-gray-700 leading-relaxed mt-3 font-bold italic border-l-4 border-[#f37021] pl-3">
-                  * If any damage caused by mishandling or improper use occurred, client should pay the cost of the entire device.
-                 </p>
-              )}
-            </div>
-
-            {/* Bank Details */}
-            <div className="bg-white p-5 rounded-xl border-2 border-[#b2beb5]">
-              <h4 className="font-bold text-[#f37021] uppercase tracking-wider mb-3 border-b-[2px] border-[#b2beb5] pb-1">Bank Details</h4>
-              <table className="w-full text-gray-800">
-                <tbody>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-2 font-bold w-32 uppercase text-[11px] tracking-wider text-gray-500">Bank Name</td>
-                    <td className="py-2 font-bold">BANK DHOFAR</td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Account Name</td>
-                    <td className="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td>
-                  </tr>
-                  <tr className="border-b border-gray-100 bg-[#f37021] bg-opacity-10">
-                    <td className="py-2 font-bold uppercase text-[11px] tracking-wider text-[#f37021] pl-2">Account No.</td>
-                    <td className="py-2 font-black text-[#f37021] text-sm">01041415893001</td>
-                  </tr>
-                  <tr className="border-b border-gray-100">
-                    <td className="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Branch</td>
-                    <td className="py-2 font-bold">AL-KHOUD</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Beneficiary No</td>
-                    <td className="py-2 font-bold">63651601</td>
-                  </tr>
+            <table id="documents-table" class="w-full text-left border-collapse hidden">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                        <th class="p-4 font-bold">Type</th>
+                        <th class="p-4 font-bold">Number</th>
+                        <th class="p-4 font-bold">Date</th>
+                        <th class="p-4 font-bold">Client</th>
+                        <th class="p-4 font-bold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="documents-tbody">
+                    <!-- Rows populated by JS -->
                 </tbody>
-              </table>
-            </div>
-          </div>
-          
+            </table>
         </div>
-      </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-100 font-sans text-gray-900 selection:bg-[#f37021] selection:text-white">
-      {/* Toast Notification System */}
-      {toastMessage && (
-        <div className="fixed top-6 right-6 z-50 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3 animate-bounce">
-          <CheckCircle2 className="w-5 h-5 text-green-400" />
-          {toastMessage}
-        </div>
-      )}
-      
-      {view === 'list' && <ListView />}
-      {view === 'edit' && <EditorView />}
-      {view === 'preview' && <PreviewLayout />}
     </div>
-  );
-}
+
+    <!-- === EDITOR VIEW === -->
+    <div id="editor-view" class="p-6 max-w-5xl mx-auto print-hidden hidden">
+        <div class="flex justify-between items-center mb-6">
+            <button onclick="switchView('list')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+                <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+            </button>
+            <div class="flex gap-3">
+                <button onclick="previewDocument()" class="bg-[#b2beb5] hover:bg-gray-400 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm">
+                    <i class="fa-solid fa-file-circle-check"></i> Preview Document
+                </button>
+                <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm">
+                    <i class="fa-solid fa-floppy-disk"></i> Save to Cloud
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8">
+            <!-- Basic Settings -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Document Type</label>
+                    <select id="doc-type" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input">
+                        <option value="Invoice">Tax Invoice</option>
+                        <option value="Quotation">Quotation</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Document Number</label>
+                    <input type="text" id="doc-number" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input" placeholder="e.g. #104 or QT38">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
+                    <input type="date" id="doc-date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input">
+                </div>
+            </div>
+
+            <!-- Client Details -->
+            <div class="p-6 bg-[#b2beb5] bg-opacity-10 rounded-xl border border-[#b2beb5] border-opacity-30">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                    <h3 class="text-lg font-black text-gray-800 flex items-center gap-2 uppercase tracking-wide">
+                        <i class="fa-solid fa-users text-[#f37021]"></i> Client Information
+                    </h3>
+                    <div class="flex flex-wrap gap-3 items-center w-full md:w-auto">
+                        <select id="client-select" onchange="loadSelectedClient()" class="text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] bg-white font-medium flex-grow md:flex-grow-0 min-w-[200px]">
+                            <option value="" disabled selected>Load from Address Book...</option>
+                            <!-- Client options populated by JS -->
+                        </select>
+                        <button onclick="saveClientToAddressBook()" class="text-sm bg-white text-[#f37021] hover:bg-[#f37021] hover:text-white px-4 py-2.5 rounded-lg font-bold transition-colors border-2 border-[#f37021] flex items-center gap-2 shadow-sm" title="Save current details to Address Book">
+                            <i class="fa-solid fa-user-plus"></i> Save Client
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Client / Company Name</label>
+                        <input type="text" id="doc-clientName" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">VAT Number (Optional)</label>
+                        <input type="text" id="doc-clientVAT" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">CR Number (Optional)</label>
+                        <input type="text" id="doc-clientCR" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Address / P.O. Box</label>
+                        <textarea id="doc-clientAddress" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div>
+                <h3 class="text-lg font-black text-gray-800 mb-4 uppercase tracking-wide flex items-center gap-2">
+                    <i class="fa-solid fa-briefcase text-[#f37021]"></i> Services & Line Items
+                </h3>
+                <div id="items-container" class="space-y-3">
+                    <!-- Items populated by JS -->
+                </div>
+                <button onclick="addEmptyItem()" class="mt-4 flex items-center gap-2 bg-orange-50 text-[#f37021] hover:bg-[#f37021] hover:text-white border border-[#f37021] transition-colors font-black px-4 py-2 rounded-lg uppercase tracking-wide text-sm shadow-sm">
+                    <i class="fa-solid fa-circle-plus"></i> Add Service Line
+                </button>
+            </div>
+
+            <!-- Totals & Notes -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t-2 border-gray-100 pt-8">
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Terms & Conditions</label>
+                    <textarea id="doc-notes" class="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-[#f37021] h-48 font-medium leading-relaxed bg-gray-50 focus:bg-white transition-colors doc-input"></textarea>
+                </div>
+                <div class="bg-[#b2beb5] bg-opacity-10 p-6 rounded-2xl border border-[#b2beb5] space-y-4">
+                    <h4 class="font-bold text-gray-800 uppercase tracking-wide mb-2 flex items-center gap-2">Calculations</h4>
+                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <span class="text-gray-700 font-bold">Tax Rate (VAT %)</span>
+                        <input type="number" id="doc-taxRate" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021] doc-input" step="0.1">
+                    </div>
+                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <span class="text-gray-700 font-bold">Discount (%)</span>
+                        <input type="number" id="doc-discountRate" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021] doc-input" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- === PREVIEW VIEW === -->
+    <div id="preview-view" class="p-4 md:p-8 max-w-4xl mx-auto print:max-w-none print:p-0 bg-gray-100 print:bg-white min-h-screen hidden">
+        <!-- Toolbar -->
+        <div class="print-hidden flex justify-between items-center mb-6">
+            <button onclick="switchView('edit')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+                <i class="fa-solid fa-pen-to-square"></i> Back to Editor
+            </button>
+            <div class="flex gap-3">
+                <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-md">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Data
+                </button>
+                <button onclick="window.print()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-md">
+                    <i class="fa-solid fa-print"></i> Download / Print PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Print Container populated dynamically -->
+        <div id="print-container" class="bg-white p-10 md:p-12 shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none min-h-[1056px] text-gray-900 text-sm font-sans relative print-exact">
+            <!-- Populated by JS renderPreview() -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Global State variables
+        window.user = null;
+        window.documentsList = [];
+        window.clientsList = [];
+        window.currentDoc = null;
+        window.documentToDelete = null;
+
+        const defaultDoc = {
+            id: '',
+            type: 'Invoice',
+            number: '',
+            date: new Date().toISOString().split('T')[0],
+            clientName: '',
+            clientVAT: '',
+            clientCR: '',
+            clientAddress: '',
+            items: [],
+            taxRate: 5,
+            discountRate: 0,
+            notes: 'Service Terms:\n- Ignition art production and development have the right to use the project output for company profile and marketing purposes.\n\nPayment Terms:\n50% Upon agreement\n50% Upon delivery'
+        };
+
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'ignition-invoice-app';
+
+        // Helper to format currency
+        window.formatOMR = (amount) => {
+            const num = parseFloat(amount) || 0;
+            return `OMR ${num.toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
+        };
+
+        // UI Helpers
+        window.showToast = (msg) => {
+            const toast = document.getElementById('toast-container');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.remove('translate-y-[-100%]', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-[-100%]', 'opacity-0');
+            }, 3000);
+        };
+
+        window.switchView = (viewName) => {
+            document.getElementById('list-view').classList.add('hidden');
+            document.getElementById('editor-view').classList.add('hidden');
+            document.getElementById('preview-view').classList.add('hidden');
+            
+            document.getElementById(`${viewName}-view`).classList.remove('hidden');
+            if(viewName === 'list') renderList();
+            if(viewName === 'preview') renderPreview();
+            window.scrollTo(0, 0);
+        };
+
+        // Auth Initialization
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (err) {
+                console.error("Auth error:", err);
+            }
+        };
+        initAuth();
+
+        onAuthStateChanged(auth, (currentUser) => {
+            window.user = currentUser;
+            if (currentUser) {
+                // Listen to Documents
+                const docsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'documents');
+                onSnapshot(docsRef, (snapshot) => {
+                    const docsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    docsData.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    window.documentsList = docsData;
+                    
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    const table = document.getElementById('documents-table');
+                    const emptyState = document.getElementById('empty-state');
+                    
+                    if(docsData.length === 0) {
+                        table.classList.add('hidden');
+                        emptyState.classList.remove('hidden');
+                    } else {
+                        table.classList.remove('hidden');
+                        emptyState.classList.add('hidden');
+                        renderList();
+                    }
+                }, (error) => {
+                    console.error("Firestore docs error:", error);
+                });
+
+                // Listen to Clients
+                const clientsRef = collection(db, 'artifacts', appId, 'users', currentUser.uid, 'clients');
+                onSnapshot(clientsRef, (snapshot) => {
+                    const clientsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    clientsData.sort((a, b) => a.name.localeCompare(b.name));
+                    window.clientsList = clientsData;
+                    renderClientSelect();
+                }, (error) => {
+                    console.error("Firestore clients error:", error);
+                });
+            }
+        });
+
+        window.renderList = () => {
+            const tbody = document.getElementById('documents-tbody');
+            tbody.innerHTML = '';
+            
+            window.documentsList.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+                
+                const typeBadgeColor = d.type === 'Invoice' ? 'bg-[#f37021]' : 'bg-[#b2beb5]';
+                
+                tr.innerHTML = `
+                    <td class="p-4">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${typeBadgeColor} text-white">
+                            ${d.type}
+                        </span>
+                    </td>
+                    <td class="p-4 font-bold text-gray-900">${d.number}</td>
+                    <td class="p-4 text-gray-600 font-medium">${d.date}</td>
+                    <td class="p-4 text-gray-800 font-medium">${d.clientName || 'Untitled Client'}</td>
+                    <td class="p-4 flex justify-end gap-2 items-center">
+                        <button onclick="previewExisting('${d.id}')" class="p-2 text-gray-400 hover:text-[#f37021] rounded-lg hover:bg-orange-50 transition-colors" title="Preview">
+                            <i class="fa-solid fa-file-circle-check"></i>
+                        </button>
+                        <button onclick="editExisting('${d.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button onclick="requestDelete('${d.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.renderClientSelect = () => {
+            const select = document.getElementById('client-select');
+            select.innerHTML = '<option value="" disabled selected>Load from Address Book...</option>';
+            window.clientsList.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.innerText = c.name;
+                select.appendChild(opt);
+            });
+        };
+
+        window.renderEditorItems = () => {
+            const container = document.getElementById('items-container');
+            container.innerHTML = '';
+            
+            window.currentDoc.items.forEach((item, index) => {
+                const total = (Number(item.qty) * Number(item.rate)).toFixed(3);
+                const div = document.createElement('div');
+                div.className = "flex gap-4 items-start bg-white border-2 border-gray-100 p-4 rounded-xl shadow-sm hover:border-[#b2beb5] transition-colors group";
+                div.innerHTML = `
+                    <div class="flex-grow">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Description</label>
+                        <textarea oninput="updateItemField(${index}, 'description', this.value)" class="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium transition-colors" rows="2">${item.description}</textarea>
+                    </div>
+                    <div class="w-24">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Qty</label>
+                        <input type="number" oninput="updateItemField(${index}, 'qty', this.value)" value="${item.qty}" class="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium text-center transition-colors" min="1">
+                    </div>
+                    <div class="w-32">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Rate (OMR)</label>
+                        <input type="number" oninput="updateItemField(${index}, 'rate', this.value)" value="${item.rate}" class="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium text-right transition-colors" step="0.001">
+                    </div>
+                    <div class="w-32">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Total</label>
+                        <div class="p-2 bg-gray-100 rounded-md border border-gray-200 text-gray-800 font-bold text-right">
+                            ${total}
+                        </div>
+                    </div>
+                    <div class="pt-6">
+                        <button onclick="removeEditorItem(${index})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-50 group-hover:opacity-100">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        };
+
+        window.populateEditorForm = () => {
+            document.getElementById('doc-type').value = window.currentDoc.type;
+            document.getElementById('doc-number').value = window.currentDoc.number;
+            document.getElementById('doc-date').value = window.currentDoc.date;
+            document.getElementById('doc-clientName').value = window.currentDoc.clientName;
+            document.getElementById('doc-clientVAT').value = window.currentDoc.clientVAT;
+            document.getElementById('doc-clientCR').value = window.currentDoc.clientCR;
+            document.getElementById('doc-clientAddress').value = window.currentDoc.clientAddress;
+            document.getElementById('doc-notes').value = window.currentDoc.notes;
+            document.getElementById('doc-taxRate').value = window.currentDoc.taxRate;
+            document.getElementById('doc-discountRate').value = window.currentDoc.discountRate;
+            document.getElementById('client-select').value = ""; // reset dropdown
+            
+            renderEditorItems();
+        };
+
+        window.renderPreview = () => {
+            syncEditorToState(); // Ensure data is caught up
+            
+            const docData = window.currentDoc;
+            const subtotal = docData.items.reduce((sum, item) => sum + (Number(item.qty) * Number(item.rate)), 0);
+            const discountAmount = subtotal * (Number(docData.discountRate) / 100);
+            const taxableAmount = subtotal - discountAmount;
+            const taxAmount = taxableAmount * (Number(docData.taxRate) / 100);
+            const total = taxableAmount + taxAmount;
+
+            let itemsRows = '';
+            docData.items.forEach((item, index) => {
+                itemsRows += `
+                    <tr class="border-b border-gray-200 align-top hover:bg-gray-50">
+                        <td class="py-4 px-4 text-center text-gray-500 font-bold">${index + 1}</td>
+                        <td class="py-4 px-4 whitespace-pre-line text-gray-900 font-medium">${item.description}</td>
+                        <td class="py-4 px-4 text-center text-gray-900 font-bold">${item.qty}</td>
+                        <td class="py-4 px-4 text-right text-gray-700 font-medium">${window.formatOMR(item.rate)}</td>
+                        <td class="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30 print:bg-transparent print:text-gray-900">${window.formatOMR(Number(item.qty) * Number(item.rate))}</td>
+                    </tr>
+                `;
+            });
+
+            const html = `
+                <!-- Header -->
+                <div class="flex justify-between items-start mb-12 border-b-[3px] border-[#f37021] pb-6">
+                    <div class="max-w-[50%]">
+                        <!-- Logo Fallback Logic natively handled using onerror -->
+                        <img src="./assets/logo.png" alt="Ignition Art Logo" class="h-24 object-contain mb-4" 
+                             onerror="this.onerror=null; this.outerHTML='<div class=\\'mb-4\\'><h1 class=\\'text-3xl font-black text-[#f37021] tracking-tight uppercase leading-none\\'>IGNITION ART</h1><h2 class=\\'text-[13px] font-black text-[#b2beb5] uppercase tracking-widest mt-1\\'>Production & Development</h2></div>';">
+                        
+                        <div class="text-xs text-gray-600 space-y-1.5 font-medium">
+                            <p>CR: 1336823 | VATIN: OM1100399040</p>
+                            <p>+968 98080306 | info@ignitionpro.net | www.ignitionpro.net</p>
+                            <p>Sultanate of Oman, Muscat</p>
+                        </div>
+                    </div>
+
+                    <div class="text-right">
+                        <h2 class="text-4xl font-black uppercase tracking-widest text-[#b2beb5] mb-4 print:text-gray-400">
+                            ${docData.type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION'}
+                        </h2>
+                        <div class="inline-block bg-[#f37021] print:bg-white print:border-2 print:border-gray-800 print:text-gray-900 text-white p-3 pr-6 rounded-l-xl text-right shadow-sm print:shadow-none">
+                            <p class="font-bold text-[13px] uppercase tracking-wider">
+                                ${docData.type === 'Invoice' ? 'Invoice Number:' : 'QTN:'} 
+                                <span class="font-normal ml-3">${docData.number}</span>
+                            </p>
+                            <p class="font-bold text-[13px] uppercase tracking-wider mt-1.5">
+                                Date: <span class="font-normal ml-3">${docData.date}</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Client Info Grid -->
+                <div class="grid grid-cols-2 gap-12 mb-10">
+                    <div>
+                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">
+                            ${docData.type === 'Invoice' ? 'Bill To:' : 'To:'}
+                        </h3>
+                        <p class="font-black text-lg text-gray-900">${docData.clientName || 'N/A'}</p>
+                        ${docData.clientAddress ? `<p class="text-gray-700 whitespace-pre-line mt-1.5 font-medium leading-relaxed">${docData.clientAddress}</p>` : ''}
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">
+                            Client Details:
+                        </h3>
+                        ${docData.clientCR ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">CR:</span> ${docData.clientCR}</p>` : ''}
+                        ${docData.clientVAT ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">VAT Number:</span> ${docData.clientVAT}</p>` : ''}
+                    </div>
+                </div>
+
+                <!-- Items Table -->
+                <table class="w-full mb-8 text-left border-collapse">
+                    <thead>
+                        <tr class="bg-[#b2beb5] text-white print:bg-gray-800 print:text-white text-xs uppercase tracking-wider">
+                            <th class="py-3 px-4 font-bold w-12 text-center border-l-4 border-[#f37021] print:border-gray-500">S.No.</th>
+                            <th class="py-3 px-4 font-bold">Description</th>
+                            <th class="py-3 px-4 font-bold w-24 text-center">Qty</th>
+                            <th class="py-3 px-4 font-bold w-32 text-right">Unit Rate</th>
+                            <th class="py-3 px-4 font-bold w-36 text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsRows}
+                    </tbody>
+                </table>
+
+                <!-- Totals Section -->
+                <div class="flex justify-end mb-12">
+                    <div class="w-80 bg-gray-50 print:bg-white print:border-gray-300 p-5 rounded-xl border border-[#b2beb5]">
+                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
+                            <span>Subtotal</span>
+                            <span class="font-bold">${window.formatOMR(subtotal)}</span>
+                        </div>
+                        ${Number(docData.discountRate) > 0 ? `
+                        <div class="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium">
+                            <span>Discount (${docData.discountRate}%)</span>
+                            <span class="font-bold">-${window.formatOMR(discountAmount)}</span>
+                        </div>` : ''}
+                        ${Number(docData.taxRate) > 0 ? `
+                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
+                            <span>VAT (${docData.taxRate}%)</span>
+                            <span class="font-bold">${window.formatOMR(taxAmount)}</span>
+                        </div>` : ''}
+                        <div class="flex justify-between py-3 text-xl font-black text-[#f37021] print:text-gray-900 border-t-[3px] border-[#b2beb5] print:border-gray-800 mt-2">
+                            <span>Total</span>
+                            <span>${window.formatOMR(total)}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Details -->
+                <div class="grid grid-cols-2 gap-12 text-xs">
+                    <!-- Notes / Terms -->
+                    <div>
+                        <h4 class="font-bold text-[#f37021] print:text-gray-600 uppercase tracking-wider mb-2 border-b-[2px] border-[#b2beb5] pb-1">Terms & Conditions</h4>
+                        <p class="whitespace-pre-line text-gray-700 leading-relaxed font-medium">
+                            ${docData.notes}
+                        </p>
+                        ${docData.type === 'Invoice' ? `
+                        <p class="whitespace-pre-line text-gray-700 leading-relaxed mt-3 font-bold italic border-l-4 border-[#f37021] pl-3">
+                            * If any damage caused by mishandling or improper use occurred, client should pay the cost of the entire device.
+                        </p>` : ''}
+                    </div>
+
+                    <!-- Bank Details -->
+                    <div class="bg-white p-5 rounded-xl border-2 border-[#b2beb5] print:border-gray-300">
+                        <h4 class="font-bold text-[#f37021] print:text-gray-600 uppercase tracking-wider mb-3 border-b-[2px] border-[#b2beb5] pb-1">Bank Details</h4>
+                        <table class="w-full text-gray-800">
+                            <tbody>
+                                <tr class="border-b border-gray-100">
+                                    <td class="py-2 font-bold w-32 uppercase text-[11px] tracking-wider text-gray-500">Bank Name</td>
+                                    <td class="py-2 font-bold">BANK DHOFAR</td>
+                                </tr>
+                                <tr class="border-b border-gray-100">
+                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Account Name</td>
+                                    <td class="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td>
+                                </tr>
+                                <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10 print:bg-transparent">
+                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-[#f37021] print:text-gray-800 pl-2 print:pl-0">Account No.</td>
+                                    <td class="py-2 font-black text-[#f37021] print:text-gray-900 text-sm">01041415893001</td>
+                                </tr>
+                                <tr class="border-b border-gray-100">
+                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Branch</td>
+                                    <td class="py-2 font-bold">AL-KHOUD</td>
+                                </tr>
+                                <tr>
+                                    <td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Beneficiary No</td>
+                                    <td class="py-2 font-bold">63651601</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('print-container').innerHTML = html;
+        };
+
+        window.syncEditorToState = () => {
+            if(!window.currentDoc) return;
+            window.currentDoc.type = document.getElementById('doc-type').value;
+            window.currentDoc.number = document.getElementById('doc-number').value;
+            window.currentDoc.date = document.getElementById('doc-date').value;
+            window.currentDoc.clientName = document.getElementById('doc-clientName').value;
+            window.currentDoc.clientVAT = document.getElementById('doc-clientVAT').value;
+            window.currentDoc.clientCR = document.getElementById('doc-clientCR').value;
+            window.currentDoc.clientAddress = document.getElementById('doc-clientAddress').value;
+            window.currentDoc.notes = document.getElementById('doc-notes').value;
+            window.currentDoc.taxRate = Number(document.getElementById('doc-taxRate').value);
+            window.currentDoc.discountRate = Number(document.getElementById('doc-discountRate').value);
+        };
+
+        // Bind global listener to inputs to sync immediately on change
+        document.querySelectorAll('.doc-input').forEach(input => {
+            input.addEventListener('change', syncEditorToState);
+        });
+
+        window.createNewDocument = () => {
+            const num = `INV-${Date.now().toString().slice(-6)}`;
+            window.currentDoc = JSON.parse(JSON.stringify(defaultDoc)); // Deep copy
+            window.currentDoc.id = crypto.randomUUID();
+            window.currentDoc.number = num;
+            window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
+            
+            populateEditorForm();
+            switchView('edit');
+        };
+
+        window.editExisting = (id) => {
+            const docToEdit = window.documentsList.find(d => d.id === id);
+            if(docToEdit) {
+                window.currentDoc = JSON.parse(JSON.stringify(docToEdit));
+                populateEditorForm();
+                switchView('edit');
+            }
+        };
+
+        window.previewExisting = (id) => {
+            const docToPreview = window.documentsList.find(d => d.id === id);
+            if(docToPreview) {
+                window.currentDoc = JSON.parse(JSON.stringify(docToPreview));
+                populateEditorForm(); // populates internal state
+                switchView('preview');
+            }
+        };
+
+        window.previewDocument = () => {
+            syncEditorToState();
+            switchView('preview');
+        };
+
+        window.saveDocument = async () => {
+            if (!window.user || !window.currentDoc) return;
+            syncEditorToState(); // Ensure last inputs are captured
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', window.currentDoc.id);
+                await setDoc(docRef, window.currentDoc);
+                showToast('Document saved successfully!');
+                if(!document.getElementById('preview-view').classList.contains('hidden')){
+                    // We are in preview mode, stay here
+                } else {
+                    switchView('list');
+                }
+            } catch (err) {
+                console.error("Error saving:", err);
+                showToast("Failed to save document.");
+            }
+        };
+
+        window.requestDelete = (id) => {
+            window.documentToDelete = id;
+            document.getElementById('confirm-modal').classList.remove('hidden');
+        };
+
+        window.closeConfirmModal = () => {
+            window.documentToDelete = null;
+            document.getElementById('confirm-modal').classList.add('hidden');
+        };
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
+            if (!window.user || !window.documentToDelete) return;
+            try {
+                await deleteDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', window.documentToDelete));
+                closeConfirmModal();
+                showToast('Document deleted.');
+            } catch (err) {
+                console.error("Delete error:", err);
+                showToast('Error deleting document.');
+            }
+        });
+
+        // Items Logic
+        window.addEmptyItem = () => {
+            window.currentDoc.items.push({ id: Date.now().toString(), description: '', qty: 1, rate: 0 });
+            renderEditorItems();
+        };
+
+        window.removeEditorItem = (index) => {
+            window.currentDoc.items.splice(index, 1);
+            renderEditorItems();
+        };
+
+        window.updateItemField = (index, field, value) => {
+            if(field === 'qty' || field === 'rate') value = Number(value);
+            window.currentDoc.items[index][field] = value;
+            renderEditorItems(); // re-renders to show new total instantly
+        };
+
+        // Client Address Book Logic
+        window.loadSelectedClient = () => {
+            const val = document.getElementById('client-select').value;
+            const client = window.clientsList.find(c => c.id === val);
+            if(client) {
+                document.getElementById('doc-clientName').value = client.name || '';
+                document.getElementById('doc-clientVAT').value = client.vat || '';
+                document.getElementById('doc-clientCR').value = client.cr || '';
+                document.getElementById('doc-clientAddress').value = client.address || '';
+                syncEditorToState();
+                showToast(`Loaded details for ${client.name}`);
+            }
+        };
+
+        window.saveClientToAddressBook = async () => {
+            syncEditorToState();
+            if (!window.user || !window.currentDoc.clientName) {
+                showToast("Please enter a Client Name to save.");
+                return;
+            }
+            
+            // Deduplication
+            const existingClient = window.clientsList.find(c => c.name.toLowerCase() === window.currentDoc.clientName.toLowerCase());
+            const clientIdToSave = existingClient ? existingClient.id : crypto.randomUUID();
+
+            try {
+                const clientRef = doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', clientIdToSave);
+                await setDoc(clientRef, {
+                    name: window.currentDoc.clientName,
+                    vat: window.currentDoc.clientVAT || '',
+                    cr: window.currentDoc.clientCR || '',
+                    address: window.currentDoc.clientAddress || ''
+                });
+                showToast("Client saved to Address Book!");
+            } catch (err) {
+                console.error("Error saving client:", err);
+                showToast("Error saving client details.");
+            }
+        };
+
+    </script>
+</body>
+</html>
