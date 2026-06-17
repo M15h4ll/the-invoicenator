@@ -442,6 +442,16 @@
             setTimeout(() => toast.classList.add('translate-y-[-100%]', 'opacity-0'), 3000);
         };
 
+        window.generateUUID = () => {
+            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+                return crypto.randomUUID();
+            }
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        };
+
         document.getElementById('current-year-display').innerText = new Date().getFullYear();
 
         window.switchView = (viewName) => {
@@ -511,14 +521,20 @@
                         renderList();
                         renderReportsDashboard();
                     }
-                }, (error) => console.error(error));
+                }, (error) => {
+                    console.error("Documents Error:", error);
+                    const loader = document.getElementById('loading-indicator');
+                    loader.innerText = 'Database Permission Denied. Please update your Firebase Rules.';
+                    loader.classList.replace('text-gray-500', 'text-red-500');
+                    loader.classList.remove('animate-pulse');
+                });
 
                 // Listen to Clients
                 onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'clients'), (snapshot) => {
                     window.clientsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
                     renderClientSelect();
                     if(!document.getElementById('list-view').classList.contains('hidden')) renderClientsDashboard();
-                }, (error) => console.error(error));
+                }, (error) => console.error("Clients Error:", error));
 
                 // Listen to Expenses
                 onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses'), (snapshot) => {
@@ -527,7 +543,12 @@
                         renderExpensesDashboard();
                         renderReportsDashboard();
                     }
-                }, (error) => console.error(error));
+                }, (error) => console.error("Expenses Error:", error));
+            } else {
+                const loader = document.getElementById('loading-indicator');
+                loader.innerText = 'Authentication Failed. Please enable Anonymous Sign-in in Firebase.';
+                loader.classList.replace('text-gray-500', 'text-red-500');
+                loader.classList.remove('animate-pulse');
             }
         });
 
@@ -726,7 +747,7 @@
             if(!desc || isNaN(amount)) return showToast("Please fill all fields.");
 
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'expenses', crypto.randomUUID()), {
+                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'expenses', window.generateUUID()), {
                     date, description: desc, amount, includesVat
                 });
                 closeExpenseModal();
@@ -805,7 +826,7 @@
 
         window.saveModalClient = async () => {
             if (!window.user) return;
-            const id = document.getElementById('modal-client-id').value || crypto.randomUUID();
+            const id = document.getElementById('modal-client-id').value || window.generateUUID();
             const name = document.getElementById('modal-client-name').value;
             if(!name) return showToast("Client name is required.");
 
@@ -855,19 +876,24 @@
 
         window.populateEditorForm = () => {
             ['type', 'number', 'date', 'clientName', 'clientVAT', 'clientCR', 'clientAddress', 'notes', 'taxRate', 'discountRate'].forEach(k => {
-                document.getElementById(`doc-${k}`).value = window.currentDoc[k] || '';
+                const el = document.getElementById(`doc-${k}`);
+                if (el) el.value = window.currentDoc[k] || '';
             });
-            document.getElementById('client-select').value = "";
+            const clientSel = document.getElementById('client-select');
+            if (clientSel) clientSel.value = "";
             renderEditorItems();
         };
 
         window.syncEditorToState = () => {
             if(!window.currentDoc) return;
             ['type', 'number', 'date', 'clientName', 'clientVAT', 'clientCR', 'clientAddress', 'notes'].forEach(k => {
-                window.currentDoc[k] = document.getElementById(`doc-${k}`).value;
+                const el = document.getElementById(`doc-${k}`);
+                if (el) window.currentDoc[k] = el.value;
             });
-            window.currentDoc.taxRate = Number(document.getElementById('doc-taxRate').value);
-            window.currentDoc.discountRate = Number(document.getElementById('doc-discountRate').value);
+            const taxEl = document.getElementById('doc-taxRate');
+            const discEl = document.getElementById('doc-discountRate');
+            if (taxEl) window.currentDoc.taxRate = Number(taxEl.value);
+            if (discEl) window.currentDoc.discountRate = Number(discEl.value);
         };
         document.querySelectorAll('.doc-input').forEach(i => i.addEventListener('change', syncEditorToState));
 
@@ -912,12 +938,17 @@
         window.handleTypeChange = () => { syncEditorToState(); window.triggerAutoGenerate(); };
 
         window.createNewDocument = () => {
-            window.currentDoc = JSON.parse(JSON.stringify(defaultDoc));
-            window.currentDoc.id = crypto.randomUUID();
-            window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
-            window.currentDoc.number = `INV-${window.getNextNumber('Invoice')}`;
-            populateEditorForm();
-            switchView('edit');
+            try {
+                window.currentDoc = JSON.parse(JSON.stringify(defaultDoc));
+                window.currentDoc.id = window.generateUUID();
+                window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
+                window.currentDoc.number = `INV-${window.getNextNumber('Invoice')}`;
+                populateEditorForm();
+                switchView('edit');
+            } catch (err) {
+                console.error(err);
+                showToast("Error opening document editor.");
+            }
         };
 
         window.editExisting = (id) => {
@@ -984,7 +1015,7 @@
             if (!window.user || !window.currentDoc.clientName) return showToast("Please enter a Client Name to save.");
             const existing = window.clientsList.find(c => c.name.toLowerCase() === window.currentDoc.clientName.toLowerCase());
             try {
-                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', existing ? existing.id : crypto.randomUUID()), {
+                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', existing ? existing.id : window.generateUUID()), {
                     name: window.currentDoc.clientName, vat: window.currentDoc.clientVAT || '',
                     cr: window.currentDoc.clientCR || '', address: window.currentDoc.clientAddress || ''
                 });
