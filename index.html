@@ -3,144 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ignition Art Invoice Maker</title>
+    <title>Ignition Art - Docs & Finance</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Chart.js for Income/Expense Graphs -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
-        /* Print specific overrides to ensure the PDF looks perfect */
+        body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #111827; }
+        .tab-btn.active { background-color: #f37021; color: white; border-color: #f37021; }
+        .tab-btn { border-color: #e5e7eb; color: #4b5563; }
+        
+        /* Print Overrides */
         @media print {
             body { background-color: white !important; }
             .print-hidden { display: none !important; }
             .print-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
             @page { margin: 0; }
+            
+            /* Report Print Layout */
+            body.printing-report { background-color: white !important; padding: 0 !important; }
+            body.printing-report #list-view { max-width: 100% !important; padding: 15mm !important; }
+            body.printing-report #list-view > div:first-child { display: none !important; } /* Hide tabs */
+            body.printing-report #report-print-header { display: block !important; }
+            body.printing-report .shadow-sm, body.printing-report .shadow-lg { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans text-gray-900 selection:bg-[#f37021] selection:text-white min-h-screen">
+<body class="selection:bg-[#f37021] selection:text-white">
 
     <!-- Toast Notification -->
-    <div id="toast-container" class="fixed top-6 right-6 z-50 transition-all duration-300 transform translate-y-[-100%] opacity-0">
-        <div class="bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3">
-            <i class="fa-solid fa-circle-check text-green-400"></i>
-            <span id="toast-message">Notification</span>
-        </div>
+    <div id="toast" class="fixed top-6 right-6 z-50 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3 transition-opacity duration-300 opacity-0 pointer-events-none">
+        <i class="fa-solid fa-circle-check text-green-400"></i>
+        <span id="toast-msg"></span>
     </div>
 
-    <!-- Confirm Delete Modal -->
-    <div id="confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden print-hidden">
-        <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full text-center mx-4">
-            <i class="fa-solid fa-triangle-exclamation text-red-500 text-4xl mb-4"></i>
-            <h3 class="text-xl font-bold mb-2">Delete Record?</h3>
-            <p class="text-gray-600 mb-6 font-medium">This action cannot be undone. Are you sure you want to delete this?</p>
-            <div class="flex justify-center gap-4">
-                <button onclick="closeConfirmModal()" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
-                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg font-bold text-white transition-colors">Yes, Delete</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Expense Modal -->
-    <div id="expense-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden print-hidden">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-black uppercase text-gray-800">Add Expense</h3>
-                <button onclick="closeExpenseModal()" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
-                    <input type="date" id="modal-expense-date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Description</label>
-                    <input type="text" id="modal-expense-desc" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium" placeholder="e.g. Office Supplies, Software...">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Amount (OMR)</label>
-                    <input type="number" id="modal-expense-amount" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium" step="0.001">
-                </div>
-                <div class="flex items-center gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <input type="checkbox" id="modal-expense-vat" class="w-5 h-5 text-[#f37021] rounded focus:ring-[#f37021]">
-                    <label for="modal-expense-vat" class="text-sm font-bold text-gray-700">Includes 5% VAT (For Tax Deduction)</label>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end gap-3">
-                <button onclick="closeExpenseModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
-                <button onclick="saveExpense()" class="px-5 py-2.5 bg-[#f37021] hover:bg-[#d95d18] text-white rounded-lg font-bold transition-colors">Save Expense</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Client Management Modal -->
-    <div id="client-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center hidden print-hidden">
-        <div class="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full mx-4">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-black uppercase text-gray-800" id="client-modal-title">Add Client</h3>
-                <button onclick="closeClientModal()" class="text-gray-400 hover:text-red-500 transition-colors"><i class="fa-solid fa-xmark text-xl"></i></button>
-            </div>
-            <input type="hidden" id="modal-client-id">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Company / Client Name</label>
-                    <input type="text" id="modal-client-name" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium" placeholder="e.g. Nama Dhofar Services">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">VAT Number</label>
-                    <input type="text" id="modal-client-vat" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">CR Number</label>
-                    <input type="text" id="modal-client-cr" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
-                </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Address / P.O. Box</label>
-                    <textarea id="modal-client-address" rows="3" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium"></textarea>
-                </div>
-            </div>
-            <div class="mt-6 flex justify-end gap-3">
-                <button onclick="closeClientModal()" class="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg font-bold text-gray-800 transition-colors">Cancel</button>
-                <button onclick="saveModalClient()" class="px-5 py-2.5 bg-[#f37021] hover:bg-[#d95d18] text-white rounded-lg font-bold transition-colors">Save Client</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- === LIST VIEW === -->
-    <div id="list-view" class="p-6 max-w-6xl mx-auto print-hidden">
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-[#1f2937] p-8 rounded-2xl shadow-xl text-white border-b-4 border-[#f37021] gap-6">
-            <div class="w-full">
+    <!-- ==================== MAIN DASHBOARD ==================== -->
+    <div id="list-view" class="p-6 max-w-7xl mx-auto block min-h-screen">
+        
+        <!-- Header & Tabs -->
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-[#1f2937] p-6 rounded-2xl shadow-xl text-white print-hidden gap-4">
+            <div>
                 <h1 class="text-3xl font-black tracking-tight flex items-center gap-3 uppercase">
-                    <i class="fa-solid fa-fire-flame-curved text-[#f37021]"></i>
-                    Ignition Hub
+                    <i class="fa-solid fa-fire-flame-curved text-[#f37021]"></i> Ignition Central
                 </h1>
-                
-                <!-- Main Navigation Tabs -->
-                <div class="mt-5 flex flex-wrap gap-2 md:gap-6 border-b border-gray-600 pb-1">
-                    <button onclick="toggleDashboardTab('reports')" id="tab-reports" class="dashboard-tab pb-2 border-b-[3px] border-[#f37021] text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
-                        <i class="fa-solid fa-chart-pie"></i> Reports & Tax
-                    </button>
-                    <button onclick="toggleDashboardTab('docs')" id="tab-docs" class="dashboard-tab pb-2 border-b-[3px] border-transparent text-gray-400 hover:text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
-                        <i class="fa-solid fa-file-invoice"></i> Documents
-                    </button>
-                    <button onclick="toggleDashboardTab('expenses')" id="tab-expenses" class="dashboard-tab pb-2 border-b-[3px] border-transparent text-gray-400 hover:text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
-                        <i class="fa-solid fa-receipt"></i> Expenses
-                    </button>
-                    <button onclick="toggleDashboardTab('clients')" id="tab-clients" class="dashboard-tab pb-2 border-b-[3px] border-transparent text-gray-400 hover:text-white font-bold transition-all uppercase tracking-wider text-sm flex items-center gap-2">
-                        <i class="fa-solid fa-address-book"></i> Address Book
-                    </button>
+                <div class="flex gap-2 mt-4 overflow-x-auto pb-2 md:pb-0">
+                    <button onclick="switchTab('documents')" id="tab-documents" class="tab-btn active px-4 py-2 rounded-lg font-bold text-sm transition-colors border whitespace-nowrap"><i class="fa-solid fa-file-invoice mr-1"></i> Documents</button>
+                    <button onclick="switchTab('clients')" id="tab-clients" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm bg-white transition-colors border whitespace-nowrap"><i class="fa-solid fa-address-book mr-1"></i> Address Book</button>
+                    <button onclick="switchTab('expenses')" id="tab-expenses" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm bg-white transition-colors border whitespace-nowrap"><i class="fa-solid fa-receipt mr-1"></i> Expenses</button>
+                    <button onclick="switchTab('reports')" id="tab-reports" class="tab-btn px-4 py-2 rounded-lg font-bold text-sm bg-white transition-colors border whitespace-nowrap"><i class="fa-solid fa-chart-pie mr-1"></i> Reports & Tax</button>
                 </div>
             </div>
-
+            
             <!-- Contextual Action Buttons -->
-            <div id="action-buttons-docs" class="hidden shrink-0">
+            <div id="action-buttons-documents" class="shrink-0">
                 <button onclick="createNewDocument()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
                     <i class="fa-solid fa-plus"></i> New Document
-                </button>
-            </div>
-            <div id="action-buttons-expenses" class="hidden shrink-0">
-                <button onclick="openExpenseModal()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
-                    <i class="fa-solid fa-plus"></i> Add Expense
                 </button>
             </div>
             <div id="action-buttons-clients" class="hidden shrink-0">
@@ -148,197 +67,185 @@
                     <i class="fa-solid fa-user-plus"></i> Add Client
                 </button>
             </div>
-            <div id="action-buttons-reports" class="shrink-0 text-gray-400 text-sm font-bold">
-                <i class="fa-solid fa-calendar-days mr-1"></i> <span id="current-year-display"></span>
+            <div id="action-buttons-expenses" class="hidden shrink-0">
+                <button onclick="openExpenseModal()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                    <i class="fa-solid fa-plus"></i> Log Expense
+                </button>
+            </div>
+            <div id="action-buttons-reports" class="hidden shrink-0 flex items-center gap-4">
+                <div class="text-gray-400 text-sm font-bold print-hidden flex items-center">
+                    <i class="fa-solid fa-calendar-days mr-2"></i> <span id="current-year-display"></span>
+                </div>
+                <button onclick="printReport()" class="bg-white text-gray-800 hover:bg-gray-100 px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm print-hidden border border-gray-200">
+                    <i class="fa-solid fa-file-pdf text-red-500"></i> PDF Report
+                </button>
             </div>
         </div>
 
-        <!-- Tab: Reports & Dashboard -->
-        <div id="dashboard-reports" class="space-y-6">
-            <!-- Chart Section -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-chart-line text-[#f37021] mr-2"></i> Income vs Expenses (Current Year)</h3>
-                <div class="w-full h-80">
-                    <canvas id="financeChart"></canvas>
-                </div>
+        <div id="loading-spinner" class="p-10 text-center text-gray-500 font-bold animate-pulse">Synchronizing with Firebase Cloud...</div>
+        <div id="error-message" class="hidden p-6 bg-red-100 text-red-700 rounded-xl font-bold mb-4 border border-red-200"></div>
+
+        <!-- Tab 1: Documents -->
+        <div id="dashboard-documents" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                        <th class="p-4 font-bold">Type</th>
+                        <th class="p-4 font-bold">Number</th>
+                        <th class="p-4 font-bold">Date</th>
+                        <th class="p-4 font-bold">Client</th>
+                        <th class="p-4 font-bold text-center">Status</th>
+                        <th class="p-4 font-bold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="documents-table-body"></tbody>
+            </table>
+            <div id="documents-empty" class="hidden p-16 text-center">
+                <i class="fa-solid fa-file-invoice text-4xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-bold text-gray-700">No documents yet</h3>
             </div>
-            
-            <!-- Tax Calculation Section -->
-            <div>
-                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-landmark text-[#b2beb5] mr-2"></i> Quarterly VAT Summary</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="tax-cards-container">
+        </div>
+
+        <!-- Tab 2: Address Book -->
+        <div id="dashboard-clients" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                        <th class="p-4 font-bold">Client Name</th>
+                        <th class="p-4 font-bold">CR Number</th>
+                        <th class="p-4 font-bold">VAT Number</th>
+                        <th class="p-4 font-bold">Address</th>
+                        <th class="p-4 font-bold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="clients-table-body"></tbody>
+            </table>
+            <div id="clients-empty" class="hidden p-16 text-center">
+                <i class="fa-solid fa-address-book text-4xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-bold text-gray-700">No clients saved</h3>
+            </div>
+        </div>
+
+        <!-- Tab 3: Expenses -->
+        <div id="dashboard-expenses" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                        <th class="p-4 font-bold">Date</th>
+                        <th class="p-4 font-bold">Description</th>
+                        <th class="p-4 font-bold text-right">Amount (OMR)</th>
+                        <th class="p-4 font-bold text-center">Incl. 5% VAT</th>
+                        <th class="p-4 font-bold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="expenses-table-body"></tbody>
+            </table>
+            <div id="expenses-empty" class="hidden p-16 text-center">
+                <i class="fa-solid fa-receipt text-4xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <h3 class="text-xl font-bold text-gray-700">No expenses logged</h3>
+            </div>
+        </div>
+
+        <!-- Tab 4: Reports & Tax -->
+        <div id="dashboard-reports" class="space-y-6 hidden">
+            <!-- Hidden Print Header -->
+            <div id="report-print-header" class="hidden mb-8 border-b-[3px] border-[#f37021] pb-4">
+                <h1 class="text-3xl font-black text-gray-900 uppercase tracking-tight">Ignition Art Production & Development</h1>
+                <h2 class="text-lg font-bold text-gray-500 uppercase tracking-widest mt-1">Quarterly Financial & Tax Report - <span id="print-year-display"></span></h2>
+            </div>
+
+            <!-- Chart -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 print-exact">
+                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-chart-line text-[#f37021] mr-2"></i> Income vs Expenses</h3>
+                <div class="relative h-72 w-full"><canvas id="financeChart"></canvas></div>
+            </div>
+
+            <!-- Tax Engine -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 print-exact">
+                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-6"><i class="fa-solid fa-building-columns text-[#f37021] mr-2"></i> Automated VAT Engine (5%)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="tax-grid">
                     <!-- Populated by JS -->
                 </div>
             </div>
         </div>
-
-        <!-- Tab: Documents Section -->
-        <div id="dashboard-docs" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
-            <div id="loading-indicator" class="p-10 text-center text-gray-500 font-medium animate-pulse">
-                Synchronizing with cloud...
-            </div>
-            <div id="empty-state" class="p-16 text-center hidden">
-                <i class="fa-solid fa-file-lines text-6xl text-[#b2beb5] mb-4 opacity-50"></i>
-                <h3 class="text-xl font-bold text-gray-700">No documents yet</h3>
-                <p class="text-gray-500 mt-2">Create your first invoice or quotation to get started.</p>
-            </div>
-            <div class="overflow-x-auto">
-                <table id="documents-table" class="w-full text-left border-collapse hidden whitespace-nowrap">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
-                            <th class="p-4 font-bold">Type</th>
-                            <th class="p-4 font-bold">Number</th>
-                            <th class="p-4 font-bold">Date</th>
-                            <th class="p-4 font-bold">Client</th>
-                            <th class="p-4 font-bold text-center">Payment Status</th>
-                            <th class="p-4 font-bold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="documents-tbody">
-                        <!-- Rows populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab: Expenses Section -->
-        <div id="dashboard-expenses" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
-            <div id="expenses-empty-state" class="p-16 text-center hidden">
-                <i class="fa-solid fa-receipt text-6xl text-[#b2beb5] mb-4 opacity-50"></i>
-                <h3 class="text-xl font-bold text-gray-700">No expenses logged</h3>
-                <p class="text-gray-500 mt-2">Track your company expenses here to automatically calculate your VAT deductions.</p>
-            </div>
-            <div class="overflow-x-auto">
-                <table id="expenses-table" class="w-full text-left border-collapse hidden">
-                    <thead>
-                        <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
-                            <th class="p-4 font-bold">Date</th>
-                            <th class="p-4 font-bold">Description</th>
-                            <th class="p-4 font-bold text-right">Amount (OMR)</th>
-                            <th class="p-4 font-bold text-center">Includes VAT</th>
-                            <th class="p-4 font-bold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expenses-tbody">
-                        <!-- Rows populated by JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Tab: Clients Section -->
-        <div id="dashboard-clients" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
-            <div id="clients-empty-state" class="p-16 text-center hidden">
-                <i class="fa-solid fa-address-book text-6xl text-[#b2beb5] mb-4 opacity-50"></i>
-                <h3 class="text-xl font-bold text-gray-700">No clients yet</h3>
-                <p class="text-gray-500 mt-2">Add clients here to easily generate invoices for them later.</p>
-            </div>
-            <table id="clients-table" class="w-full text-left border-collapse hidden">
-                <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
-                        <th class="p-4 font-bold">Client Name</th>
-                        <th class="p-4 font-bold">VAT Number</th>
-                        <th class="p-4 font-bold">CR Number</th>
-                        <th class="p-4 font-bold text-right">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="clients-tbody">
-                    <!-- Rows populated by JS -->
-                </tbody>
-            </table>
-        </div>
     </div>
 
-    <!-- === EDITOR VIEW === -->
-    <div id="editor-view" class="p-6 max-w-5xl mx-auto print-hidden hidden">
+    <!-- ==================== EDITOR VIEW ==================== -->
+    <div id="editor-view" class="p-6 max-w-5xl mx-auto hidden print-hidden">
         <div class="flex justify-between items-center mb-6">
-            <button onclick="switchView('list')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+            <button onclick="switchView('list-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
                 <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
             </button>
             <div class="flex gap-3">
-                <button onclick="previewDocument()" class="bg-[#b2beb5] hover:bg-gray-400 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm">
-                    <i class="fa-solid fa-file-circle-check"></i> Preview Document
+                <button onclick="previewDocument()" class="bg-[#b2beb5] hover:bg-gray-400 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-sm">
+                    <i class="fa-solid fa-eye"></i> Preview
                 </button>
-                <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm">
-                    <i class="fa-solid fa-floppy-disk"></i> Save to Cloud
+                <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-sm">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Save to Cloud
                 </button>
             </div>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8">
-            <!-- Basic Settings -->
+            <!-- Settings -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Document Type</label>
-                    <select id="doc-type" onchange="handleTypeChange()" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input">
+                    <select id="edit-type" onchange="handleTypeChange()" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
                         <option value="Invoice">Tax Invoice</option>
                         <option value="Quotation">Quotation</option>
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1 flex justify-between items-center">
-                        Document Number
-                        <span class="text-[10px] text-gray-400 font-normal uppercase tracking-widest">Editable</span>
-                    </label>
-                    <div class="flex shadow-sm rounded-lg relative">
-                        <input type="text" id="doc-number" class="w-full border border-gray-300 rounded-l-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input border-r-0" placeholder="e.g. #104 or QT38">
-                        <button onclick="triggerAutoGenerate()" class="bg-gray-50 border border-gray-300 rounded-r-lg px-4 hover:bg-orange-50 transition-colors border-l-0 flex items-center justify-center group" title="Auto Generate Number">
-                            <i class="fa-solid fa-wand-magic-sparkles text-gray-400 group-hover:text-[#f37021] transition-colors"></i>
+                    <label class="block text-sm font-bold text-gray-700 mb-1">Document Number</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="edit-number" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium font-mono text-sm">
+                        <button onclick="autoGenerateNumber()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 rounded-lg border border-gray-300" title="Auto Generate Number">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i>
                         </button>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
-                    <input type="date" id="doc-date" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] focus:border-[#f37021] font-medium doc-input">
+                    <input type="date" id="edit-date" onchange="autoGenerateNumber(true)" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
                 </div>
             </div>
 
-            <!-- Client Details -->
+            <!-- Client Area -->
             <div class="p-6 bg-[#b2beb5] bg-opacity-10 rounded-xl border border-[#b2beb5] border-opacity-30">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <h3 class="text-lg font-black text-gray-800 flex items-center gap-2 uppercase tracking-wide">
-                        <i class="fa-solid fa-users text-[#f37021]"></i> Client Information
-                    </h3>
-                    <div class="flex flex-wrap gap-3 items-center w-full md:w-auto">
-                        <select id="client-select" onchange="loadSelectedClient()" class="text-sm border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] bg-white font-medium flex-grow md:flex-grow-0 min-w-[200px]">
-                            <option value="" disabled selected>Load from Address Book...</option>
-                            <!-- Client options populated by JS -->
-                        </select>
-                        <button onclick="saveClientToAddressBook()" class="text-sm bg-white text-[#f37021] hover:bg-[#f37021] hover:text-white px-4 py-2.5 rounded-lg font-bold transition-colors border-2 border-[#f37021] flex items-center gap-2 shadow-sm" title="Save current details to Address Book">
-                            <i class="fa-solid fa-user-plus"></i> Save Client
-                        </button>
-                    </div>
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-black text-gray-800 uppercase tracking-wide"><i class="fa-solid fa-users text-[#f37021]"></i> Client Information</h3>
+                    <select id="edit-client-select" onchange="loadClientIntoEditor()" class="text-sm border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#f37021] font-medium bg-white w-64">
+                        <option value="">Load from Address Book...</option>
+                    </select>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Client / Company Name</label>
-                        <input type="text" id="doc-clientName" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Client / Company Name</label>
+                        <input type="text" id="edit-clientName" onchange="autoGenerateNumber(true)" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">VAT Number (Optional)</label>
-                        <input type="text" id="doc-clientVAT" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">VAT Number</label>
+                        <input type="text" id="edit-clientVAT" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium">
                     </div>
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">CR Number (Optional)</label>
-                        <input type="text" id="doc-clientCR" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input">
+                        <label class="block text-xs font-bold text-gray-500 uppercase">CR Number</label>
+                        <input type="text" id="edit-clientCR" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium">
                     </div>
                     <div class="md:col-span-2">
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Address / P.O. Box</label>
-                        <textarea id="doc-clientAddress" class="w-full border border-white rounded-lg p-2.5 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium doc-input" rows="2"></textarea>
+                        <label class="block text-xs font-bold text-gray-500 uppercase">Address</label>
+                        <textarea id="edit-clientAddress" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium" rows="2"></textarea>
                     </div>
                 </div>
             </div>
 
             <!-- Items -->
             <div>
-                <h3 class="text-lg font-black text-gray-800 mb-4 uppercase tracking-wide flex items-center gap-2">
-                    <i class="fa-solid fa-briefcase text-[#f37021]"></i> Services & Line Items
-                </h3>
-                <div id="items-container" class="space-y-3">
-                    <!-- Items populated by JS -->
+                <h3 class="text-lg font-black text-gray-800 mb-4 uppercase tracking-wide"><i class="fa-solid fa-briefcase text-[#f37021]"></i> Services</h3>
+                <div id="editor-items-container" class="space-y-3">
+                    <!-- Items rendered here via JS -->
                 </div>
-                <button onclick="addEmptyItem()" class="mt-4 flex items-center gap-2 bg-orange-50 text-[#f37021] hover:bg-[#f37021] hover:text-white border border-[#f37021] transition-colors font-black px-4 py-2 rounded-lg uppercase tracking-wide text-sm shadow-sm">
+                <button onclick="addEditorItem()" class="mt-4 flex items-center gap-2 bg-orange-50 text-[#f37021] border border-[#f37021] font-black px-4 py-2 rounded-lg uppercase text-sm shadow-sm hover:bg-[#f37021] hover:text-white transition-colors">
                     <i class="fa-solid fa-circle-plus"></i> Add Service Line
                 </button>
             </div>
@@ -347,52 +254,185 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t-2 border-gray-100 pt-8">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Terms & Conditions</label>
-                    <textarea id="doc-notes" class="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-[#f37021] h-48 font-medium leading-relaxed bg-gray-50 focus:bg-white transition-colors doc-input"></textarea>
+                    <textarea id="edit-notes" class="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-[#f37021] h-48 font-medium leading-relaxed bg-gray-50"></textarea>
                 </div>
-                <div class="bg-[#b2beb5] bg-opacity-10 p-6 rounded-2xl border border-[#b2beb5] space-y-4">
-                    <h4 class="font-bold text-gray-800 uppercase tracking-wide mb-2 flex items-center gap-2">Calculations</h4>
-                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
+                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
                         <span class="text-gray-700 font-bold">Tax Rate (VAT %)</span>
-                        <input type="number" id="doc-taxRate" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021] doc-input" step="0.1">
+                        <input type="number" id="edit-taxRate" oninput="updateLiveTotals()" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021]">
                     </div>
-                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
                         <span class="text-gray-700 font-bold">Discount (%)</span>
-                        <input type="number" id="doc-discountRate" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021] doc-input" step="0.1">
+                        <input type="number" id="edit-discountRate" oninput="updateLiveTotals()" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021]">
+                    </div>
+                    <div class="pt-4 border-t border-gray-200">
+                        <div class="flex justify-between text-sm text-gray-600 mb-1"><span>Subtotal:</span> <span id="live-subtotal" class="font-bold">OMR 0.000</span></div>
+                        <div class="flex justify-between text-sm text-[#f37021] mb-1"><span>Discount:</span> <span id="live-discount" class="font-bold">OMR 0.000</span></div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-3"><span>Tax:</span> <span id="live-tax" class="font-bold">OMR 0.000</span></div>
+                        <div class="flex justify-between text-xl font-black text-gray-900 border-t pt-2"><span>Total:</span> <span id="live-total">OMR 0.000</span></div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- === PREVIEW VIEW === -->
-    <div id="preview-view" class="p-4 md:p-8 max-w-4xl mx-auto print:max-w-none print:p-0 bg-gray-100 print:bg-white min-h-screen hidden">
-        <!-- Toolbar -->
+    <!-- ==================== PREVIEW VIEW ==================== -->
+    <div id="preview-view" class="p-4 md:p-8 max-w-4xl mx-auto hidden print:max-w-none print:p-0">
         <div class="print-hidden flex justify-between items-center mb-6">
-            <button onclick="switchView('editor')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
-                <i class="fa-solid fa-pen-to-square"></i> Back to Editor
+            <button onclick="switchView('editor-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+                <i class="fa-solid fa-pen-to-square"></i> Edit
             </button>
             <div class="flex gap-3">
-                <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-md">
+                <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-md">
                     <i class="fa-solid fa-floppy-disk"></i> Save Data
                 </button>
-                <button onclick="window.print()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-md">
-                    <i class="fa-solid fa-print"></i> Download / Print PDF
+                <button onclick="window.print()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-md">
+                    <i class="fa-solid fa-print"></i> Download PDF
                 </button>
             </div>
         </div>
 
-        <!-- Print Container populated dynamically -->
-        <div id="print-container" class="bg-white p-10 md:p-12 shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none min-h-[1056px] text-gray-900 text-sm font-sans relative print-exact">
-            <!-- Populated by JS renderPreview() -->
+        <!-- ACTUAL DOCUMENT -->
+        <div class="bg-white p-10 md:p-12 shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none min-h-[1056px] text-gray-900 text-sm">
+            
+            <div class="flex justify-between items-start mb-12 border-b-[3px] border-[#f37021] pb-6">
+                <div class="max-w-[50%]">
+                    <!-- Logo Fallback Logic -->
+                    <img src="./assets/logo.png" alt="Ignition Art Logo" class="h-24 object-contain mb-4" onerror="this.outerHTML='<div class=\'mb-4\'><h1 class=\'text-3xl font-black text-[#f37021] tracking-tight uppercase leading-none\'>IGNITION ART</h1><h2 class=\'text-[13px] font-black text-[#b2beb5] uppercase tracking-widest mt-1\'>Production & Development</h2></div>'">
+                    
+                    <div class="text-xs text-gray-600 space-y-1.5 font-medium">
+                        <p>CR: 1336823 | VATIN: OM1100399040</p>
+                        <p>+968 98080306 | info@ignitionpro.net | www.ignitionpro.net</p>
+                        <p>Sultanate of Oman, Muscat</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <h2 id="prev-title" class="text-4xl font-black uppercase tracking-widest text-[#b2beb5] mb-4">INVOICE</h2>
+                    <div class="inline-block bg-[#f37021] text-white p-3 pr-6 rounded-l-xl text-right shadow-sm">
+                        <p class="font-bold text-[13px] uppercase tracking-wider">
+                            <span id="prev-num-label">No:</span> <span id="prev-number" class="font-normal ml-3"></span>
+                        </p>
+                        <p class="font-bold text-[13px] uppercase tracking-wider mt-1.5">
+                            Date: <span id="prev-date" class="font-normal ml-3"></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-12 mb-10">
+                <div>
+                    <h3 id="prev-to-label" class="font-bold text-[#f37021] mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">Bill To:</h3>
+                    <p id="prev-clientName" class="font-black text-lg text-gray-900"></p>
+                    <p id="prev-clientAddress" class="text-gray-700 whitespace-pre-line mt-1.5 font-medium leading-relaxed"></p>
+                </div>
+                <div>
+                    <h3 class="font-bold text-[#f37021] mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">Client Details:</h3>
+                    <p class="font-medium mt-1.5"><span class="font-bold text-gray-800">CR:</span> <span id="prev-clientCR"></span></p>
+                    <p class="font-medium mt-1.5"><span class="font-bold text-gray-800">VAT Number:</span> <span id="prev-clientVAT"></span></p>
+                </div>
+            </div>
+
+            <table class="w-full mb-8 text-left border-collapse">
+                <thead>
+                    <tr class="bg-[#b2beb5] text-white text-xs uppercase tracking-wider">
+                        <th class="py-3 px-4 font-bold w-12 text-center border-l-4 border-[#f37021]">S.No.</th>
+                        <th class="py-3 px-4 font-bold">Description</th>
+                        <th class="py-3 px-4 font-bold w-24 text-center">Qty</th>
+                        <th class="py-3 px-4 font-bold w-32 text-right">Unit Rate</th>
+                        <th class="py-3 px-4 font-bold w-36 text-right">Amount</th>
+                    </tr>
+                </thead>
+                <tbody id="prev-items"></tbody>
+            </table>
+
+            <div class="flex justify-end mb-12">
+                <div class="w-80 bg-gray-50 p-5 rounded-xl border border-[#b2beb5]">
+                    <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
+                        <span>Subtotal</span>
+                        <span id="prev-subtotal" class="font-bold"></span>
+                    </div>
+                    <div id="prev-discount-row" class="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium hidden">
+                        <span id="prev-discount-label">Discount</span>
+                        <span id="prev-discount-val" class="font-bold"></span>
+                    </div>
+                    <div id="prev-tax-row" class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700 hidden">
+                        <span id="prev-tax-label">VAT</span>
+                        <span id="prev-tax-val" class="font-bold"></span>
+                    </div>
+                    <div class="flex justify-between py-3 text-xl font-black text-[#f37021] border-t-[3px] border-[#b2beb5] mt-2">
+                        <span>Total</span>
+                        <span id="prev-total"></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-12 text-xs">
+                <div>
+                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-2 border-b-[2px] border-[#b2beb5] pb-1">Terms & Conditions</h4>
+                    <p id="prev-notes" class="whitespace-pre-line text-gray-700 leading-relaxed font-medium"></p>
+                    <p id="prev-invoice-note" class="hidden whitespace-pre-line text-gray-700 leading-relaxed mt-3 font-bold italic border-l-4 border-[#f37021] pl-3">
+                        * If any damage caused by mishandling or improper use occurred, client should pay the cost of the entire device.
+                    </p>
+                </div>
+                <div class="bg-white p-5 rounded-xl border-2 border-[#b2beb5]">
+                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-3 border-b-[2px] border-[#b2beb5] pb-1">Bank Details</h4>
+                    <table class="w-full text-gray-800">
+                        <tbody>
+                            <tr class="border-b border-gray-100"><td class="py-2 font-bold w-32 uppercase text-[11px] text-gray-500">Bank Name</td><td class="py-2 font-bold">BANK DHOFAR</td></tr>
+                            <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] text-gray-500">Account Name</td><td class="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
+                            <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10"><td class="py-2 font-bold uppercase text-[11px] text-[#f37021] pl-2">Account No.</td><td class="py-2 font-black text-[#f37021] text-sm">01041415893001</td></tr>
+                            <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] text-gray-500">Branch</td><td class="py-2 font-bold">AL-KHOUD</td></tr>
+                            <tr><td class="py-2 font-bold uppercase text-[11px] text-gray-500">Beneficiary No</td><td class="py-2 font-bold">63651601</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="client-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 print-hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 class="text-xl font-black text-gray-800 mb-6 uppercase tracking-wide">Save Client Details</h2>
+            <div class="space-y-4">
+                <input type="hidden" id="modal-client-id">
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Company Name *</label><input type="text" id="modal-client-name" class="w-full border rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">CR Number</label><input type="text" id="modal-client-cr" class="w-full border rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">VAT Number</label><input type="text" id="modal-client-vat" class="w-full border rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Address</label><textarea id="modal-client-address" class="w-full border rounded-lg p-2 font-medium" rows="2"></textarea></div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeClientModal()" class="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button onclick="saveClientFromModal()" class="px-4 py-2 bg-[#f37021] text-white font-bold rounded-lg hover:bg-[#d95d18]">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="expense-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 print-hidden">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+            <h2 class="text-xl font-black text-gray-800 mb-6 uppercase tracking-wide">Log Expense</h2>
+            <div class="space-y-4">
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Date *</label><input type="date" id="modal-expense-date" class="w-full border rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Description *</label><input type="text" id="modal-expense-desc" class="w-full border rounded-lg p-2 font-medium" placeholder="e.g. Equipment Rental"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Amount (OMR) *</label><input type="number" step="0.001" id="modal-expense-amount" class="w-full border rounded-lg p-2 font-medium"></div>
+                <div class="flex items-center gap-2 mt-2">
+                    <input type="checkbox" id="modal-expense-vat" class="w-5 h-5 text-[#f37021] rounded">
+                    <label class="text-sm font-bold text-gray-700">Amount includes 5% VAT</label>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button onclick="closeExpenseModal()" class="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button onclick="saveExpense()" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600">Save Expense</button>
+            </div>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, doc, setDoc, updateDoc, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Firebase Configuration (Directly Embedded per Request)
+        // --- HARDCODED FIREBASE CONFIGURATION ---
         const firebaseConfig = {
             apiKey: "AIzaSyBJAsHf9E4Jjp7l6YPV1I9KV9V7APo6Yfs",
             authDomain: "invocenator.firebaseapp.com",
@@ -405,745 +445,629 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = 'invocenator-app';
+        const firestoreAppId = typeof __app_id !== 'undefined' ? __app_id : 'ignition-invoice-app';
 
-        // Global State
-        window.user = null;
-        window.documentsList = [];
-        window.clientsList = [];
-        window.expensesList = [];
-        window.currentDoc = null;
-        window.itemToDelete = { type: null, id: null };
-        window.chartInstance = null;
+        // --- GLOBAL STATE ---
+        let currentUser = null;
+        let documentsData = [];
+        let clientsData = [];
+        let expensesData = [];
+        let activeDoc = null;
+        let chartInstance = null;
 
-        const defaultDoc = {
-            id: '',
-            type: 'Invoice',
-            number: '',
-            date: new Date().toISOString().split('T')[0],
-            clientName: '',
-            clientVAT: '',
-            clientCR: '',
-            clientAddress: '',
-            items: [],
-            taxRate: 5,
-            discountRate: 0,
-            status: 'pending', // pending | paid
-            notes: 'Service Terms:\n- Ignition art production and development have the right to use the project output for company profile and marketing purposes.\n\nPayment Terms:\n50% Upon agreement\n50% Upon delivery'
-        };
-
-        // Helpers
+        // --- HELPERS ---
         window.formatOMR = (amount) => `OMR ${parseFloat(amount || 0).toFixed(3).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`;
         
         window.showToast = (msg) => {
-            const toast = document.getElementById('toast-container');
-            document.getElementById('toast-message').innerText = msg;
-            toast.classList.remove('translate-y-[-100%]', 'opacity-0');
-            setTimeout(() => toast.classList.add('translate-y-[-100%]', 'opacity-0'), 3000);
+            const t = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            t.classList.remove('opacity-0');
+            setTimeout(() => t.classList.add('opacity-0'), 3000);
         };
 
         window.generateUUID = () => {
-            if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-                return crypto.randomUUID();
-            }
+            if (crypto && crypto.randomUUID) return crypto.randomUUID();
             return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
                 const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
         };
 
-        document.getElementById('current-year-display').innerText = new Date().getFullYear();
+        const curYear = new Date().getFullYear();
+        document.getElementById('current-year-display').innerText = curYear;
+        document.getElementById('print-year-display').innerText = curYear;
 
-        window.switchView = (viewName) => {
-            // Safety check to ensure 'edit' maps to 'editor-view'
-            if (viewName === 'edit') viewName = 'editor';
-            
-            const listEl = document.getElementById('list-view');
-            const editorEl = document.getElementById('editor-view');
-            const previewEl = document.getElementById('preview-view');
-            const targetEl = document.getElementById(`${viewName}-view`);
-            
-            // Fail-safe checks to prevent null 'classList' crashes
-            if (listEl) listEl.classList.add('hidden');
-            if (editorEl) editorEl.classList.add('hidden');
-            if (previewEl) previewEl.classList.add('hidden');
-            if (targetEl) targetEl.classList.remove('hidden');
-            else console.warn(`Could not find view: ${viewName}-view`);
-            
-            if(viewName === 'list') {
-                const activeTab = document.querySelector('.dashboard-tab.border-[#f37021]');
-                if(activeTab) {
-                    const tabId = activeTab.id.replace('tab-', '');
-                    window.toggleDashboardTab(tabId);
-                } else {
-                    window.toggleDashboardTab('reports');
-                }
-            }
-            if(viewName === 'preview' && typeof window.renderPreview === 'function') {
-                window.renderPreview();
-            }
-            window.scrollTo(0, 0);
-        };
-
-        window.toggleDashboardTab = (tabName) => {
-            const tabs = ['reports', 'docs', 'expenses', 'clients'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`tab-${t}`);
-                const content = document.getElementById(`dashboard-${t}`);
-                const actions = document.getElementById(`action-buttons-${t}`);
-                
-                // Fail-safe toggling
-                if(t === tabName) {
-                    if (btn) {
-                        btn.classList.replace('border-transparent', 'border-[#f37021]');
-                        btn.classList.replace('text-gray-400', 'text-white');
-                    }
-                    if (content) content.classList.remove('hidden');
-                    if (actions) actions.classList.remove('hidden');
-                } else {
-                    if (btn) {
-                        btn.classList.replace('border-[#f37021]', 'border-transparent');
-                        btn.classList.replace('text-white', 'text-gray-400');
-                    }
-                    if (content) content.classList.add('hidden');
-                    if (actions) actions.classList.add('hidden');
+        // Secure View Switcher
+        window.switchView = (viewId) => {
+            const views = ['list-view', 'editor-view', 'preview-view'];
+            views.forEach(v => {
+                const el = document.getElementById(v);
+                if (el) {
+                    if (v === viewId) el.classList.remove('hidden');
+                    else el.classList.add('hidden');
                 }
             });
-
-            if(tabName === 'reports' && typeof window.renderReportsDashboard === 'function') window.renderReportsDashboard();
-            if(tabName === 'docs' && typeof window.renderList === 'function') window.renderList();
-            if(tabName === 'expenses' && typeof window.renderExpensesDashboard === 'function') window.renderExpensesDashboard();
-            if(tabName === 'clients' && typeof window.renderClientsDashboard === 'function') window.renderClientsDashboard();
         };
 
+        window.switchTab = (tabName) => {
+            const tabs = ['documents', 'clients', 'expenses', 'reports'];
+            tabs.forEach(t => {
+                const contentEl = document.getElementById(`dashboard-${t}`);
+                const btnEl = document.getElementById(`tab-${t}`);
+                const actionEl = document.getElementById(`action-buttons-${t}`);
+                
+                if (contentEl) contentEl.classList.add('hidden');
+                if (btnEl) {
+                    btnEl.classList.remove('active', 'bg-[#f37021]', 'text-white');
+                    btnEl.classList.add('bg-white');
+                }
+                if (actionEl) actionEl.classList.add('hidden');
+
+                if (t === tabName) {
+                    if (contentEl) contentEl.classList.remove('hidden');
+                    if (btnEl) {
+                        btnEl.classList.add('active', 'bg-[#f37021]', 'text-white');
+                        btnEl.classList.remove('bg-white');
+                    }
+                    if (actionEl) actionEl.classList.remove('hidden');
+                }
+            });
+            if (tabName === 'reports') renderDashboard();
+        };
+
+        window.printReport = () => {
+            document.body.classList.add('printing-report');
+            window.print();
+            setTimeout(() => document.body.classList.remove('printing-report'), 500);
+        };
+
+        // --- AUTHENTICATION ---
         const initAuth = async () => {
             try {
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
+                    try {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } catch (e) {
+                        console.warn("Custom token rejected by your invocenator config. Falling back to anonymous auth...");
+                        await signInAnonymously(auth);
+                    }
                 } else {
                     await signInAnonymously(auth);
                 }
-            } catch (err) { console.error("Auth error:", err); }
+            } catch (err) {
+                console.error("Auth error:", err);
+                document.getElementById('error-message').innerText = "Authentication failed. Check your Firebase Auth settings.";
+                document.getElementById('error-message').classList.remove('hidden');
+                document.getElementById('loading-spinner').classList.add('hidden');
+            }
         };
-        initAuth();
 
-        onAuthStateChanged(auth, (currentUser) => {
-            window.user = currentUser;
-            if (currentUser) {
-                // Listen to Documents
-                onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'documents'), (snapshot) => {
-                    window.documentsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
-                    document.getElementById('loading-indicator').classList.add('hidden');
-                    if(!document.getElementById('list-view').classList.contains('hidden')) {
-                        renderList();
-                        renderReportsDashboard();
-                    }
-                }, (error) => {
-                    console.error("Documents Error:", error);
-                    const loader = document.getElementById('loading-indicator');
-                    loader.innerText = 'Database Permission Denied. Please update your Firebase Rules.';
-                    loader.classList.replace('text-gray-500', 'text-red-500');
-                    loader.classList.remove('animate-pulse');
-                });
-
-                // Listen to Clients
-                onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'clients'), (snapshot) => {
-                    window.clientsList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
-                    renderClientSelect();
-                    if(!document.getElementById('list-view').classList.contains('hidden')) renderClientsDashboard();
-                }, (error) => console.error("Clients Error:", error));
-
-                // Listen to Expenses
-                onSnapshot(collection(db, 'artifacts', appId, 'users', currentUser.uid, 'expenses'), (snapshot) => {
-                    window.expensesList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => new Date(b.date) - new Date(a.date));
-                    if(!document.getElementById('list-view').classList.contains('hidden')) {
-                        renderExpensesDashboard();
-                        renderReportsDashboard();
-                    }
-                }, (error) => console.error("Expenses Error:", error));
-            } else {
-                const loader = document.getElementById('loading-indicator');
-                loader.innerText = 'Authentication Failed. Please enable Anonymous Sign-in in Firebase.';
-                loader.classList.replace('text-gray-500', 'text-red-500');
-                loader.classList.remove('animate-pulse');
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUser = user;
+                loadData();
             }
         });
+        initAuth();
 
-        window.renderReportsDashboard = () => {
-            const currentYear = new Date().getFullYear();
+        // --- DATA FETCHING ---
+        const loadData = () => {
+            // Documents
+            onSnapshot(collection(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'documents'), (snap) => {
+                documentsData = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(b.date) - new Date(a.date));
+                document.getElementById('loading-spinner').classList.add('hidden');
+                renderDocuments();
+                if(document.getElementById('dashboard-reports').classList.contains('hidden') === false) renderDashboard();
+            }, (err) => showError("Firestore Docs Error: " + err.message));
+
+            // Clients
+            onSnapshot(collection(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'clients'), (snap) => {
+                clientsData = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => a.name.localeCompare(b.name));
+                renderClients();
+                updateClientDropdown();
+            });
+
+            // Expenses
+            onSnapshot(collection(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'expenses'), (snap) => {
+                expensesData = snap.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => new Date(b.date) - new Date(a.date));
+                renderExpenses();
+                if(document.getElementById('dashboard-reports').classList.contains('hidden') === false) renderDashboard();
+            });
+        };
+
+        const showError = (msg) => {
+            const errDiv = document.getElementById('error-message');
+            errDiv.innerText = msg + " (Make sure Firestore Security Rules are published!)";
+            errDiv.classList.remove('hidden');
+            document.getElementById('loading-spinner').classList.add('hidden');
+        };
+
+        // --- RENDERERS ---
+        const renderDocuments = () => {
+            const tbody = document.getElementById('documents-table-body');
+            const empty = document.getElementById('documents-empty');
+            tbody.innerHTML = '';
+            
+            if(documentsData.length === 0) {
+                empty.classList.remove('hidden');
+                return;
+            }
+            empty.classList.add('hidden');
+
+            documentsData.forEach(d => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                const isInv = d.type === 'Invoice';
+                
+                let statusHtml = '';
+                if(isInv) {
+                    const statusColor = d.received ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-[#f37021] border-orange-200';
+                    statusHtml = `
+                        <button onclick="toggleReceived('${d.id}', ${!d.received})" class="px-3 py-1 rounded-full text-xs font-bold uppercase border ${statusColor} hover:opacity-80 transition-opacity">
+                            ${d.received ? '<i class="fa-solid fa-check"></i> Paid' : 'Pending'}
+                        </button>
+                    `;
+                } else {
+                    statusHtml = `<span class="text-xs text-gray-400 font-bold uppercase">N/A</span>`;
+                }
+
+                tr.innerHTML = `
+                    <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${isInv ? 'bg-[#f37021] text-white' : 'bg-[#b2beb5] text-white'}">${d.type}</span></td>
+                    <td class="p-4 font-bold text-gray-900">${d.number}</td>
+                    <td class="p-4 text-gray-600 font-medium">${d.date}</td>
+                    <td class="p-4 text-gray-800 font-medium">${d.clientName || 'Untitled Client'}</td>
+                    <td class="p-4 text-center">${statusHtml}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="editDocument('${d.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteDocById('documents', '${d.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50" title="Delete"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        const renderClients = () => {
+            const tbody = document.getElementById('clients-table-body');
+            const empty = document.getElementById('clients-empty');
+            tbody.innerHTML = '';
+            if(clientsData.length === 0) { empty.classList.remove('hidden'); return; }
+            empty.classList.add('hidden');
+
+            clientsData.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="p-4 font-bold text-gray-900">${c.name}</td>
+                    <td class="p-4 text-gray-600 font-medium">${c.cr || '-'}</td>
+                    <td class="p-4 text-gray-600 font-medium">${c.vat || '-'}</td>
+                    <td class="p-4 text-gray-600 font-medium truncate max-w-xs">${c.address || '-'}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="openClientModal('${c.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg"><i class="fa-solid fa-pen"></i></button>
+                        <button onclick="deleteDocById('clients', '${c.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        const renderExpenses = () => {
+            const tbody = document.getElementById('expenses-table-body');
+            const empty = document.getElementById('expenses-empty');
+            tbody.innerHTML = '';
+            if(expensesData.length === 0) { empty.classList.remove('hidden'); return; }
+            empty.classList.add('hidden');
+
+            expensesData.forEach(e => {
+                const tr = document.createElement('tr');
+                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-gray-800">${e.date}</td>
+                    <td class="p-4 text-gray-600 font-bold">${e.description}</td>
+                    <td class="p-4 text-gray-900 font-black text-right">${formatOMR(e.amount)}</td>
+                    <td class="p-4 text-center">${e.includesVat ? '<i class="fa-solid fa-check text-green-500"></i>' : '-'}</td>
+                    <td class="p-4 text-right">
+                        <button onclick="deleteDocById('expenses', '${e.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.toggleReceived = async (docId, status) => {
+            if(!currentUser) return;
+            await updateDoc(doc(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'documents', docId), { received: status });
+            showToast(status ? 'Marked as Paid!' : 'Marked as Pending');
+        };
+
+        window.deleteDocById = async (collectionName, id) => {
+            if(!currentUser || !confirm("Are you sure you want to delete this?")) return;
+            await deleteDoc(doc(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', collectionName, id));
+            showToast('Deleted successfully');
+        };
+
+        // --- DASHBOARD MATH & CHARTS ---
+        const renderDashboard = () => {
             let qData = [
-                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }, // Q1
-                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }, // Q2
-                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }, // Q3
-                { income: 0, vatCollected: 0, expenses: 0, vatPaid: 0 }  // Q4
+                { iTotal: 0, eTotal: 0, iVat: 0, eVat: 0 }, // Q1
+                { iTotal: 0, eTotal: 0, iVat: 0, eVat: 0 }, // Q2
+                { iTotal: 0, eTotal: 0, iVat: 0, eVat: 0 }, // Q3
+                { iTotal: 0, eTotal: 0, iVat: 0, eVat: 0 }  // Q4
             ];
 
-            // Calculate Income (Only Paid Invoices)
-            window.documentsList.forEach(d => {
-                const docDate = new Date(d.date);
-                if(docDate.getFullYear() === currentYear && d.type === 'Invoice' && d.status === 'paid') {
-                    const q = Math.floor(docDate.getMonth() / 3);
-                    const subtotal = d.items.reduce((sum, item) => sum + (Number(item.qty) * Number(item.rate)), 0);
-                    const discountAmount = subtotal * (Number(d.discountRate || 0) / 100);
-                    const taxableAmount = subtotal - discountAmount;
-                    const taxAmount = taxableAmount * (Number(d.taxRate || 0) / 100);
-                    
-                    qData[q].income += (taxableAmount + taxAmount);
-                    qData[q].vatCollected += taxAmount;
-                }
+            // Income (Received Invoices)
+            documentsData.filter(d => d.type === 'Invoice' && d.received && d.date.startsWith(curYear)).forEach(d => {
+                const m = parseInt(d.date.split('-')[1]);
+                const q = Math.ceil(m / 3) - 1;
+                const sub = d.items.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+                const disc = sub * (d.discountRate / 100);
+                const tax = (sub - disc) * (d.taxRate / 100);
+                qData[q].iTotal += (sub - disc + tax);
+                qData[q].iVat += tax;
             });
 
-            // Calculate Expenses
-            window.expensesList.forEach(e => {
-                const expDate = new Date(e.date);
-                if(expDate.getFullYear() === currentYear) {
-                    const q = Math.floor(expDate.getMonth() / 3);
-                    const amt = parseFloat(e.amount);
-                    qData[q].expenses += amt;
-                    if(e.includesVat) {
-                        qData[q].vatPaid += (amt - (amt / 1.05));
-                    }
-                }
+            // Expenses
+            expensesData.filter(e => e.date.startsWith(curYear)).forEach(e => {
+                const m = parseInt(e.date.split('-')[1]);
+                const q = Math.ceil(m / 3) - 1;
+                const amt = parseFloat(e.amount);
+                qData[q].eTotal += amt;
+                if(e.includesVat) qData[q].eVat += (amt - (amt / 1.05)); // Extract 5% VAT
             });
 
-            // Render Chart
-            const ctx = document.getElementById('financeChart').getContext('2d');
-            if(window.chartInstance) window.chartInstance.destroy();
-            window.chartInstance = new Chart(ctx, {
+            // Chart
+            const ctx = document.getElementById('financeChart');
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['Quarter 1 (Jan-Mar)', 'Quarter 2 (Apr-Jun)', 'Quarter 3 (Jul-Sep)', 'Quarter 4 (Oct-Dec)'],
+                    labels: ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'],
                     datasets: [
-                        { label: 'Income Received', data: qData.map(q => q.income), backgroundColor: '#f37021', borderRadius: 6 },
-                        { label: 'Expenses Logged', data: qData.map(q => q.expenses), backgroundColor: '#b2beb5', borderRadius: 6 }
+                        { label: 'Income Received', data: qData.map(q => q.iTotal), backgroundColor: '#f37021', borderRadius: 4 },
+                        { label: 'Expenses Logged', data: qData.map(q => q.eTotal), backgroundColor: '#b2beb5', borderRadius: 4 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { callback: function(val){return 'OMR '+val;} } } } }
+                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { beginAtZero: true } } }
             });
 
-            // Render Tax Cards
-            const container = document.getElementById('tax-cards-container');
-            container.innerHTML = '';
-            qData.forEach((q, index) => {
-                const netVat = q.vatCollected - q.vatPaid;
-                const netColor = netVat > 0 ? 'text-[#f37021]' : (netVat < 0 ? 'text-green-500' : 'text-gray-800');
-                
-                container.innerHTML += `
-                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5 shadow-sm">
-                        <h4 class="font-black text-gray-800 uppercase tracking-wide border-b-2 border-gray-200 pb-2 mb-3">Quarter ${index + 1}</h4>
-                        <div class="space-y-2 text-sm font-medium text-gray-600">
-                            <div class="flex justify-between"><span>VAT Collected:</span> <span class="font-bold text-gray-800">${window.formatOMR(q.vatCollected)}</span></div>
-                            <div class="flex justify-between"><span>VAT Deductible:</span> <span class="font-bold text-gray-800">-${window.formatOMR(q.vatPaid)}</span></div>
-                            <div class="border-t border-gray-200 pt-2 flex justify-between items-center mt-2">
-                                <span class="font-bold uppercase text-[11px] tracking-wider">Net VAT Due:</span>
-                                <span class="font-black text-lg ${netColor}">${window.formatOMR(netVat)}</span>
-                            </div>
+            // Tax Grid
+            const grid = document.getElementById('tax-grid');
+            grid.innerHTML = '';
+            qData.forEach((q, i) => {
+                const netVat = q.iVat - q.eVat;
+                const isDue = netVat > 0;
+                grid.innerHTML += `
+                    <div class="border rounded-xl p-4 ${isDue ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}">
+                        <h4 class="font-black text-gray-800 border-b pb-2 mb-2">Quarter ${i+1}</h4>
+                        <div class="flex justify-between text-xs mb-1"><span class="text-gray-500 font-bold">VAT Collected:</span><span class="font-black">${formatOMR(q.iVat)}</span></div>
+                        <div class="flex justify-between text-xs mb-2"><span class="text-gray-500 font-bold">VAT Paid:</span><span class="font-black">${formatOMR(q.eVat)}</span></div>
+                        <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
+                            <span class="font-bold ${isDue ? 'text-[#f37021]' : 'text-gray-600'}">Net VAT ${isDue ? 'Due' : 'Credit'}:</span>
+                            <span class="font-black ${isDue ? 'text-[#f37021]' : 'text-gray-600'}">${formatOMR(Math.abs(netVat))}</span>
                         </div>
                     </div>
                 `;
             });
         };
 
-        window.renderList = () => {
-            const tbody = document.getElementById('documents-tbody');
-            const table = document.getElementById('documents-table');
-            const emptyState = document.getElementById('empty-state');
-            tbody.innerHTML = '';
+        // --- EDITOR LOGIC ---
+        const getInitials = (name) => {
+            if (!name) return 'XXX';
+            const words = name.trim().toUpperCase().split(/\s+/);
+            if (words.length >= 3) return words[0][0] + words[Math.floor(words.length/2)][0] + words[words.length-1][0];
+            if (words.length === 2) return words[0][0] + words[0][1] + words[1][0];
+            return name.replace(/[^A-Z]/gi, '').padEnd(3, 'X').substring(0, 3).toUpperCase();
+        };
+
+        window.autoGenerateNumber = (forceQuotation = false) => {
+            if(!activeDoc) return;
+            const type = document.getElementById('edit-type').value;
+            const date = document.getElementById('edit-date').value;
+            const clientName = document.getElementById('edit-clientName').value;
+            let finalNum = '';
+
+            if(type === 'Invoice' && !forceQuotation) {
+                // Find highest existing invoice number
+                let max = 100;
+                documentsData.filter(d => d.type === 'Invoice' && d.id !== activeDoc.id).forEach(d => {
+                    const match = d.number.match(/\d+/);
+                    if(match) { const num = parseInt(match[0]); if(num > max) max = num; }
+                });
+                finalNum = `INV-${max + 1}`;
+            } else if (type === 'Quotation') {
+                // Formula: QTN_105_2026-06-17_NDS
+                let max = 0;
+                documentsData.filter(d => d.type === 'Quotation' && d.id !== activeDoc.id).forEach(d => {
+                    const match = d.number.match(/QTN_(\d+)_/);
+                    if(match) { const num = parseInt(match[1]); if(num > max) max = num; }
+                });
+                const initials = getInitials(clientName);
+                finalNum = `QTN_${max + 1}_${date}_${initials}`;
+            }
             
-            if(window.documentsList.length === 0) {
-                table.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-            } else {
-                table.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                
-                window.documentsList.forEach(d => {
-                    const isInvoice = d.type === 'Invoice';
-                    const isPaid = d.status === 'paid';
-                    
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-4">
-                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${isInvoice ? 'bg-[#f37021]' : 'bg-[#b2beb5]'} text-white">
-                                ${d.type}
-                            </span>
-                        </td>
-                        <td class="p-4 font-bold text-gray-900">${d.number}</td>
-                        <td class="p-4 text-gray-600 font-medium">${d.date}</td>
-                        <td class="p-4 text-gray-800 font-medium truncate max-w-[200px]">${d.clientName || 'Untitled Client'}</td>
-                        <td class="p-4 text-center">
-                            ${isInvoice ? `
-                                <button onclick="toggleDocStatus('${d.id}', '${d.status}')" class="px-3 py-1.5 rounded-full text-[11px] font-black uppercase tracking-wider transition-colors border shadow-sm flex items-center gap-1 mx-auto
-                                ${isPaid ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200' : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-100'}">
-                                    <i class="fa-solid ${isPaid ? 'fa-check-double' : 'fa-clock'}"></i>
-                                    ${isPaid ? 'Received' : 'Pending'}
-                                </button>
-                            ` : `<span class="text-gray-400 text-xs font-bold uppercase tracking-wider">-</span>`}
-                        </td>
-                        <td class="p-4 flex justify-end gap-2 items-center">
-                            <button onclick="previewExisting('${d.id}')" class="p-2 text-gray-400 hover:text-[#f37021] rounded-lg hover:bg-orange-50 transition-colors" title="Preview">
-                                <i class="fa-solid fa-file-circle-check"></i>
-                            </button>
-                            <button onclick="editExisting('${d.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onclick="requestDelete('document', '${d.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
+            if(finalNum) {
+                activeDoc.number = finalNum;
+                document.getElementById('edit-number').value = finalNum;
             }
         };
 
-        window.toggleDocStatus = async (id, currentStatus) => {
-            if(!window.user) return;
-            const newStatus = currentStatus === 'paid' ? 'pending' : 'paid';
-            try {
-                await updateDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', id), { status: newStatus });
-                showToast(`Invoice marked as ${newStatus.toUpperCase()}`);
-            } catch(err) {
-                console.error(err);
-                showToast('Error updating status');
+        window.createNewDocument = () => {
+            const today = new Date().toISOString().split('T')[0];
+            activeDoc = {
+                id: generateUUID(), type: 'Invoice', number: '', date: today,
+                clientName: '', clientVAT: '', clientCR: '', clientAddress: '',
+                items: [{ id: generateUUID(), description: '', qty: 1, rate: 0 }],
+                taxRate: 5, discountRate: 0, received: false,
+                notes: 'Service Terms:\n- Ignition art production and development have the right to use the project output for company profile and marketing purposes.\n\nPayment Terms:\n50% Upon agreement\n50% Upon delivery'
+            };
+            syncEditorToDoc();
+            autoGenerateNumber();
+            switchView('editor-view');
+        };
+
+        window.editDocument = (id) => {
+            const docToEdit = documentsData.find(d => d.id === id);
+            if(docToEdit) {
+                activeDoc = JSON.parse(JSON.stringify(docToEdit)); // Deep copy
+                syncEditorToDoc();
+                switchView('editor-view');
             }
         };
 
-        window.renderExpensesDashboard = () => {
-            const tbody = document.getElementById('expenses-tbody');
-            const table = document.getElementById('expenses-table');
-            const emptyState = document.getElementById('expenses-empty-state');
-            tbody.innerHTML = '';
+        window.handleTypeChange = () => {
+            activeDoc.type = document.getElementById('edit-type').value;
+            autoGenerateNumber();
+        };
+
+        const syncEditorToDoc = () => {
+            document.getElementById('edit-type').value = activeDoc.type;
+            document.getElementById('edit-number').value = activeDoc.number;
+            document.getElementById('edit-date').value = activeDoc.date;
+            document.getElementById('edit-clientName').value = activeDoc.clientName;
+            document.getElementById('edit-clientVAT').value = activeDoc.clientVAT;
+            document.getElementById('edit-clientCR').value = activeDoc.clientCR;
+            document.getElementById('edit-clientAddress').value = activeDoc.clientAddress;
+            document.getElementById('edit-notes').value = activeDoc.notes;
+            document.getElementById('edit-taxRate').value = activeDoc.taxRate;
+            document.getElementById('edit-discountRate').value = activeDoc.discountRate;
             
-            if(window.expensesList.length === 0) {
-                table.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-            } else {
-                table.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                
-                window.expensesList.forEach(e => {
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-4 text-gray-900 font-bold">${e.date}</td>
-                        <td class="p-4 text-gray-700 font-medium">${e.description}</td>
-                        <td class="p-4 font-black text-[#f37021] text-right">${window.formatOMR(e.amount)}</td>
-                        <td class="p-4 text-center">
-                            ${e.includesVat ? '<i class="fa-solid fa-check text-green-500 text-lg"></i>' : '<i class="fa-solid fa-minus text-gray-300"></i>'}
-                        </td>
-                        <td class="p-4 flex justify-end">
-                            <button onclick="requestDelete('expense', '${e.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
+            renderEditorItems(); // Only called on full load
+            updateLiveTotals();
         };
 
-        window.openExpenseModal = () => {
-            document.getElementById('modal-expense-date').value = new Date().toISOString().split('T')[0];
-            document.getElementById('modal-expense-desc').value = '';
-            document.getElementById('modal-expense-amount').value = '';
-            document.getElementById('modal-expense-vat').checked = true;
-            document.getElementById('expense-modal').classList.remove('hidden');
+        const syncDocToEditor = () => {
+            activeDoc.type = document.getElementById('edit-type').value;
+            activeDoc.number = document.getElementById('edit-number').value;
+            activeDoc.date = document.getElementById('edit-date').value;
+            activeDoc.clientName = document.getElementById('edit-clientName').value;
+            activeDoc.clientVAT = document.getElementById('edit-clientVAT').value;
+            activeDoc.clientCR = document.getElementById('edit-clientCR').value;
+            activeDoc.clientAddress = document.getElementById('edit-clientAddress').value;
+            activeDoc.notes = document.getElementById('edit-notes').value;
+            activeDoc.taxRate = parseFloat(document.getElementById('edit-taxRate').value) || 0;
+            activeDoc.discountRate = parseFloat(document.getElementById('edit-discountRate').value) || 0;
         };
 
-        window.closeExpenseModal = () => document.getElementById('expense-modal').classList.add('hidden');
-
-        window.saveExpense = async () => {
-            if(!window.user) return;
-            const date = document.getElementById('modal-expense-date').value;
-            const desc = document.getElementById('modal-expense-desc').value;
-            const amount = parseFloat(document.getElementById('modal-expense-amount').value);
-            const includesVat = document.getElementById('modal-expense-vat').checked;
-
-            if(!desc || isNaN(amount)) return showToast("Please fill all fields.");
-
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'expenses', window.generateUUID()), {
-                    date, description: desc, amount, includesVat
-                });
-                closeExpenseModal();
-                showToast("Expense logged successfully!");
-            } catch(err) { showToast("Error saving expense."); }
-        };
-
-        window.renderClientsDashboard = () => {
-            const tbody = document.getElementById('clients-tbody');
-            const table = document.getElementById('clients-table');
-            const emptyState = document.getElementById('clients-empty-state');
-            tbody.innerHTML = '';
-            
-            if(window.clientsList.length === 0) {
-                table.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-            } else {
-                table.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                window.clientsList.forEach(c => {
-                    const tr = document.createElement('tr');
-                    tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
-                    tr.innerHTML = `
-                        <td class="p-4 font-bold text-gray-900">${c.name}</td>
-                        <td class="p-4 text-gray-600 font-medium">${c.vat || '-'}</td>
-                        <td class="p-4 text-gray-600 font-medium">${c.cr || '-'}</td>
-                        <td class="p-4 flex justify-end gap-2 items-center">
-                            <button onclick="editClient('${c.id}')" class="p-2 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors" title="Edit">
-                                <i class="fa-solid fa-pen-to-square"></i>
-                            </button>
-                            <button onclick="requestDelete('client', '${c.id}')" class="p-2 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors" title="Delete">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(tr);
-                });
-            }
-        };
-
-        window.renderClientSelect = () => {
-            const select = document.getElementById('client-select');
-            select.innerHTML = '<option value="" disabled selected>Load from Address Book...</option>';
-            window.clientsList.forEach(c => {
-                const opt = document.createElement('option');
-                opt.value = c.id;
-                opt.innerText = c.name;
-                select.appendChild(opt);
-            });
-        };
-
-        window.openClientModal = () => {
-            document.getElementById('client-modal-title').innerText = 'Add Client';
-            document.getElementById('modal-client-id').value = '';
-            document.getElementById('modal-client-name').value = '';
-            document.getElementById('modal-client-vat').value = '';
-            document.getElementById('modal-client-cr').value = '';
-            document.getElementById('modal-client-address').value = '';
-            document.getElementById('client-modal').classList.remove('hidden');
-        };
-
-        window.closeClientModal = () => document.getElementById('client-modal').classList.add('hidden');
-
-        window.editClient = (id) => {
-            const client = window.clientsList.find(c => c.id === id);
-            if(client) {
-                document.getElementById('client-modal-title').innerText = 'Edit Client';
-                document.getElementById('modal-client-id').value = client.id;
-                document.getElementById('modal-client-name').value = client.name;
-                document.getElementById('modal-client-vat').value = client.vat || '';
-                document.getElementById('modal-client-cr').value = client.cr || '';
-                document.getElementById('modal-client-address').value = client.address || '';
-                document.getElementById('client-modal').classList.remove('hidden');
-            }
-        };
-
-        window.saveModalClient = async () => {
-            if (!window.user) return;
-            const id = document.getElementById('modal-client-id').value || window.generateUUID();
-            const name = document.getElementById('modal-client-name').value;
-            if(!name) return showToast("Client name is required.");
-
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', id), {
-                    name,
-                    vat: document.getElementById('modal-client-vat').value,
-                    cr: document.getElementById('modal-client-cr').value,
-                    address: document.getElementById('modal-client-address').value
-                });
-                closeClientModal();
-                showToast("Client saved successfully!");
-            } catch (err) { showToast("Error saving client."); }
-        };
-
+        // --- LINE ITEMS LOGIC (FOCUS-SAFE) ---
         window.renderEditorItems = () => {
-            const container = document.getElementById('items-container');
+            const container = document.getElementById('editor-items-container');
             container.innerHTML = '';
-            window.currentDoc.items.forEach((item, index) => {
-                const total = (Number(item.qty) * Number(item.rate)).toFixed(3);
+            activeDoc.items.forEach((item, index) => {
                 const div = document.createElement('div');
-                div.className = "flex gap-4 items-start bg-white border-2 border-gray-100 p-4 rounded-xl shadow-sm hover:border-[#b2beb5] transition-colors group";
+                div.className = 'flex gap-4 items-start bg-gray-50 border border-gray-200 p-4 rounded-xl shadow-sm';
                 div.innerHTML = `
                     <div class="flex-grow">
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Description</label>
-                        <textarea oninput="updateItemField(${index}, 'description', this.value)" class="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium transition-colors" rows="2">${item.description}</textarea>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Description</label>
+                        <textarea data-idx="${index}" data-field="description" class="item-input w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] font-medium bg-white" rows="2">${item.description}</textarea>
                     </div>
                     <div class="w-24">
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Qty</label>
-                        <input type="number" oninput="updateItemField(${index}, 'qty', this.value)" value="${item.qty}" class="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium text-center transition-colors" min="1">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Qty</label>
+                        <input type="number" data-idx="${index}" data-field="qty" value="${item.qty}" min="1" class="item-input w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] font-medium text-center bg-white">
                     </div>
                     <div class="w-32">
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Rate (OMR)</label>
-                        <input type="number" oninput="updateItemField(${index}, 'rate', this.value)" value="${item.rate}" class="w-full border border-gray-200 bg-gray-50 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] focus:bg-white font-medium text-right transition-colors" step="0.001">
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Rate</label>
+                        <input type="number" step="0.001" data-idx="${index}" data-field="rate" value="${item.rate}" class="item-input w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] font-medium text-right bg-white">
                     </div>
                     <div class="w-32">
-                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase tracking-wider">Total</label>
-                        <div class="p-2 bg-gray-100 rounded-md border border-gray-200 text-gray-800 font-bold text-right">${total}</div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Total</label>
+                        <div id="item-total-${index}" class="p-2 bg-gray-200 rounded-md border border-gray-300 text-gray-800 font-bold text-right">${(item.qty * item.rate).toFixed(3)}</div>
                     </div>
                     <div class="pt-6">
-                        <button onclick="removeEditorItem(${index})" class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors opacity-50 group-hover:opacity-100"><i class="fa-solid fa-trash-can"></i></button>
+                        <button onclick="removeEditorItem(${index})" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 `;
                 container.appendChild(div);
             });
+
+            // Attach focus-safe listeners
+            document.querySelectorAll('.item-input').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const idx = e.target.getAttribute('data-idx');
+                    const field = e.target.getAttribute('data-field');
+                    let val = e.target.value;
+                    if(field === 'qty' || field === 'rate') val = parseFloat(val) || 0;
+                    
+                    activeDoc.items[idx][field] = val; // Update object in memory
+                    
+                    // Update exact total node
+                    const totalNode = document.getElementById(`item-total-${idx}`);
+                    if(totalNode) totalNode.innerText = (activeDoc.items[idx].qty * activeDoc.items[idx].rate).toFixed(3);
+                    
+                    updateLiveTotals(); // Update global math
+                });
+            });
         };
 
-        window.populateEditorForm = () => {
-            ['type', 'number', 'date', 'clientName', 'clientVAT', 'clientCR', 'clientAddress', 'notes', 'taxRate', 'discountRate'].forEach(k => {
-                const el = document.getElementById(`doc-${k}`);
-                if (el) el.value = window.currentDoc[k] || '';
-            });
-            const clientSel = document.getElementById('client-select');
-            if (clientSel) clientSel.value = "";
+        window.addEditorItem = () => {
+            activeDoc.items.push({ id: generateUUID(), description: '', qty: 1, rate: 0 });
+            renderEditorItems(); // Safe to re-render when adding/removing
+            updateLiveTotals();
+        };
+
+        window.removeEditorItem = (index) => {
+            activeDoc.items.splice(index, 1);
             renderEditorItems();
+            updateLiveTotals();
         };
 
-        window.syncEditorToState = () => {
-            if(!window.currentDoc) return;
-            ['type', 'number', 'date', 'clientName', 'clientVAT', 'clientCR', 'clientAddress', 'notes'].forEach(k => {
-                const el = document.getElementById(`doc-${k}`);
-                if (el) window.currentDoc[k] = el.value;
-            });
-            const taxEl = document.getElementById('doc-taxRate');
-            const discEl = document.getElementById('doc-discountRate');
-            if (taxEl) window.currentDoc.taxRate = Number(taxEl.value);
-            if (discEl) window.currentDoc.discountRate = Number(discEl.value);
+        window.updateLiveTotals = () => {
+            syncDocToEditor();
+            const sub = activeDoc.items.reduce((sum, item) => sum + (item.qty * item.rate), 0);
+            const disc = sub * (activeDoc.discountRate / 100);
+            const tax = (sub - disc) * (activeDoc.taxRate / 100);
+            document.getElementById('live-subtotal').innerText = formatOMR(sub);
+            document.getElementById('live-discount').innerText = formatOMR(disc);
+            document.getElementById('live-tax').innerText = formatOMR(tax);
+            document.getElementById('live-total').innerText = formatOMR(sub - disc + tax);
         };
-        document.querySelectorAll('.doc-input').forEach(i => i.addEventListener('change', syncEditorToState));
-
-        window.getClientAcronym = (name) => {
-            if (!name) return "XXX";
-            const clean = name.replace(/[^a-zA-Z0-9\s]/g, '').trim();
-            if (!clean) return "XXX";
-            const words = clean.split(/\s+/);
-            if (words.length >= 3) return (words[0][0] + words[Math.floor(words.length/2)][0] + words[words.length-1][0]).toUpperCase();
-            if (words.length === 2) return (words[0][0] + words[1][0] + words[1][words[1].length-1]).toUpperCase();
-            if (clean.length < 3) return clean.padEnd(3, 'X').toUpperCase();
-            return (clean[0] + clean[Math.floor(clean.length/2)] + clean[clean.length-1]).toUpperCase();
-        };
-
-        window.getQuotationDate = () => {
-            const m = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-            const d = new Date();
-            return `${m[d.getMonth()]}${String(d.getDate()).padStart(2, '0')}_${d.getFullYear()}`;
-        };
-
-        window.getNextNumber = (type) => {
-            let max = 0;
-            const regex = type === 'Invoice' ? /INV-(\d+)/i : /QTN_(\d+)/i;
-            window.documentsList.forEach(d => {
-                if(d.type === type && d.number) {
-                    const match = d.number.match(regex);
-                    if(match && match[1]) max = Math.max(max, parseInt(match[1], 10));
-                }
-            });
-            return max > 0 ? max + 1 : (type === 'Invoice' ? 100 : 1);
-        };
-
-        window.triggerAutoGenerate = () => {
-            syncEditorToState();
-            const t = window.currentDoc.type;
-            const n = window.getNextNumber(t);
-            window.currentDoc.number = t === 'Invoice' ? `INV-${n}` : `QTN_${n}_${window.getQuotationDate()}_${window.getClientAcronym(window.currentDoc.clientName)}`;
-            document.getElementById('doc-number').value = window.currentDoc.number;
-            showToast('Number automatically formatted!');
-        };
-
-        window.handleTypeChange = () => { syncEditorToState(); window.triggerAutoGenerate(); };
-
-        window.createNewDocument = () => {
-            try {
-                window.currentDoc = JSON.parse(JSON.stringify(defaultDoc));
-                window.currentDoc.id = window.generateUUID();
-                window.currentDoc.items = [{ id: Date.now().toString(), description: '', qty: 1, rate: 0 }];
-                window.currentDoc.number = `INV-${window.getNextNumber('Invoice')}`;
-                populateEditorForm();
-                switchView('editor');
-            } catch (err) {
-                console.error(err);
-                showToast("Error opening document editor.");
-            }
-        };
-
-        window.editExisting = (id) => {
-            const doc = window.documentsList.find(d => d.id === id);
-            if(doc) { window.currentDoc = JSON.parse(JSON.stringify(doc)); populateEditorForm(); switchView('editor'); }
-        };
-
-        window.previewExisting = (id) => {
-            const doc = window.documentsList.find(d => d.id === id);
-            if(doc) { window.currentDoc = JSON.parse(JSON.stringify(doc)); populateEditorForm(); switchView('preview'); }
-        };
-
-        window.previewDocument = () => { syncEditorToState(); switchView('preview'); };
 
         window.saveDocument = async () => {
-            if (!window.user || !window.currentDoc) return;
-            syncEditorToState();
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'documents', window.currentDoc.id), window.currentDoc);
-                showToast('Document saved successfully!');
-                if(document.getElementById('preview-view').classList.contains('hidden')) switchView('list');
-            } catch (err) { showToast("Failed to save document."); }
+            if(!currentUser || !activeDoc) return;
+            syncDocToEditor();
+            await setDoc(doc(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'documents', activeDoc.id), activeDoc);
+            showToast('Document saved to cloud!');
+            switchView('list-view');
         };
 
-        window.requestDelete = (type, id) => {
-            window.itemToDelete = { type, id };
-            document.getElementById('confirm-modal').classList.remove('hidden');
+        // --- PREVIEW RENDERER ---
+        window.previewDocument = () => {
+            syncDocToEditor();
+            document.getElementById('prev-title').innerText = activeDoc.type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION';
+            document.getElementById('prev-num-label').innerText = activeDoc.type === 'Invoice' ? 'Invoice Number:' : 'QTN:';
+            document.getElementById('prev-to-label').innerText = activeDoc.type === 'Invoice' ? 'Bill To:' : 'To:';
+            document.getElementById('prev-number').innerText = activeDoc.number;
+            document.getElementById('prev-date').innerText = activeDoc.date;
+            
+            document.getElementById('prev-clientName').innerText = activeDoc.clientName || 'N/A';
+            document.getElementById('prev-clientAddress').innerText = activeDoc.clientAddress;
+            document.getElementById('prev-clientCR').innerText = activeDoc.clientCR || 'N/A';
+            document.getElementById('prev-clientVAT').innerText = activeDoc.clientVAT || 'N/A';
+            document.getElementById('prev-notes').innerText = activeDoc.notes;
+
+            const n = document.getElementById('prev-invoice-note');
+            if(activeDoc.type === 'Invoice') n.classList.remove('hidden'); else n.classList.add('hidden');
+
+            const tbody = document.getElementById('prev-items');
+            tbody.innerHTML = '';
+            let sub = 0;
+            activeDoc.items.forEach((item, idx) => {
+                const total = item.qty * item.rate;
+                sub += total;
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-200 align-top ${idx%2!==0?'bg-gray-50':''}">
+                        <td class="py-4 px-4 text-center font-bold text-gray-500">${idx + 1}</td>
+                        <td class="py-4 px-4 font-medium whitespace-pre-line">${item.description}</td>
+                        <td class="py-4 px-4 text-center font-bold">${item.qty}</td>
+                        <td class="py-4 px-4 text-right font-medium text-gray-700">${formatOMR(item.rate)}</td>
+                        <td class="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30">${formatOMR(total)}</td>
+                    </tr>
+                `;
+            });
+
+            document.getElementById('prev-subtotal').innerText = formatOMR(sub);
+            
+            const dRow = document.getElementById('prev-discount-row');
+            if(activeDoc.discountRate > 0) {
+                dRow.classList.remove('hidden');
+                document.getElementById('prev-discount-label').innerText = `Discount (${activeDoc.discountRate}%)`;
+                document.getElementById('prev-discount-val').innerText = "-" + formatOMR(sub * (activeDoc.discountRate/100));
+            } else dRow.classList.add('hidden');
+
+            const tRow = document.getElementById('prev-tax-row');
+            if(activeDoc.taxRate > 0) {
+                tRow.classList.remove('hidden');
+                document.getElementById('prev-tax-label').innerText = `VAT (${activeDoc.taxRate}%)`;
+                document.getElementById('prev-tax-val').innerText = formatOMR((sub - (sub * (activeDoc.discountRate/100))) * (activeDoc.taxRate/100));
+            } else tRow.classList.add('hidden');
+
+            const tax = (sub - (sub * (activeDoc.discountRate/100))) * (activeDoc.taxRate/100);
+            const final = sub - (sub * (activeDoc.discountRate/100)) + tax;
+            document.getElementById('prev-total').innerText = formatOMR(final);
+
+            switchView('preview-view');
         };
 
-        window.closeConfirmModal = () => {
-            window.itemToDelete = { type: null, id: null };
-            document.getElementById('confirm-modal').classList.add('hidden');
+        // --- CLIENT & EXPENSE MODALS ---
+        window.openClientModal = (id = null) => {
+            const m = document.getElementById('client-modal');
+            if(id) {
+                const c = clientsData.find(x => x.id === id);
+                document.getElementById('modal-client-id').value = c.id;
+                document.getElementById('modal-client-name').value = c.name;
+                document.getElementById('modal-client-cr').value = c.cr;
+                document.getElementById('modal-client-vat').value = c.vat;
+                document.getElementById('modal-client-address').value = c.address;
+            } else {
+                document.getElementById('modal-client-id').value = '';
+                document.getElementById('modal-client-name').value = '';
+                document.getElementById('modal-client-cr').value = '';
+                document.getElementById('modal-client-vat').value = '';
+                document.getElementById('modal-client-address').value = '';
+            }
+            m.classList.remove('hidden');
+            m.classList.add('flex');
+        };
+        window.closeClientModal = () => { document.getElementById('client-modal').classList.add('hidden'); };
+
+        window.saveClientFromModal = async () => {
+            if(!currentUser) return;
+            const name = document.getElementById('modal-client-name').value;
+            if(!name) { alert("Name required!"); return; }
+            
+            let id = document.getElementById('modal-client-id').value || generateUUID();
+            await setDoc(doc(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'clients', id), {
+                name,
+                cr: document.getElementById('modal-client-cr').value,
+                vat: document.getElementById('modal-client-vat').value,
+                address: document.getElementById('modal-client-address').value
+            });
+            closeClientModal();
+            showToast('Client Saved!');
         };
 
-        document.getElementById('confirm-delete-btn').addEventListener('click', async () => {
-            if (!window.user || !window.itemToDelete.id) return;
-            try {
-                const collName = window.itemToDelete.type === 'document' ? 'documents' : (window.itemToDelete.type === 'client' ? 'clients' : 'expenses');
-                await deleteDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, collName, window.itemToDelete.id));
-                closeConfirmModal();
-                showToast('Record deleted.');
-            } catch (err) { showToast('Error deleting record.'); }
-        });
+        const updateClientDropdown = () => {
+            const select = document.getElementById('edit-client-select');
+            select.innerHTML = '<option value="">Load from Address Book...</option>';
+            clientsData.forEach(c => { select.innerHTML += `<option value="${c.id}">${c.name}</option>`; });
+        };
 
-        window.addEmptyItem = () => { window.currentDoc.items.push({ id: Date.now().toString(), description: '', qty: 1, rate: 0 }); renderEditorItems(); };
-        window.removeEditorItem = (idx) => { window.currentDoc.items.splice(idx, 1); renderEditorItems(); };
-        window.updateItemField = (idx, fld, val) => { window.currentDoc.items[idx][fld] = (fld==='qty'||fld==='rate') ? Number(val) : val; renderEditorItems(); };
-
-        window.loadSelectedClient = () => {
-            const client = window.clientsList.find(c => c.id === document.getElementById('client-select').value);
-            if(client) {
-                document.getElementById('doc-clientName').value = client.name || '';
-                document.getElementById('doc-clientVAT').value = client.vat || '';
-                document.getElementById('doc-clientCR').value = client.cr || '';
-                document.getElementById('doc-clientAddress').value = client.address || '';
-                syncEditorToState();
-                if(window.currentDoc.type === 'Quotation') window.triggerAutoGenerate();
-                showToast(`Loaded details for ${client.name}`);
+        window.loadClientIntoEditor = () => {
+            const id = document.getElementById('edit-client-select').value;
+            if(!id) return;
+            const c = clientsData.find(x => x.id === id);
+            if(c) {
+                document.getElementById('edit-clientName').value = c.name;
+                document.getElementById('edit-clientCR').value = c.cr || '';
+                document.getElementById('edit-clientVAT').value = c.vat || '';
+                document.getElementById('edit-clientAddress').value = c.address || '';
+                autoGenerateNumber(true);
+                showToast(`Loaded ${c.name}`);
             }
         };
 
-        window.saveClientToAddressBook = async () => {
-            syncEditorToState();
-            if (!window.user || !window.currentDoc.clientName) return showToast("Please enter a Client Name to save.");
-            const existing = window.clientsList.find(c => c.name.toLowerCase() === window.currentDoc.clientName.toLowerCase());
-            try {
-                await setDoc(doc(db, 'artifacts', appId, 'users', window.user.uid, 'clients', existing ? existing.id : window.generateUUID()), {
-                    name: window.currentDoc.clientName, vat: window.currentDoc.clientVAT || '',
-                    cr: window.currentDoc.clientCR || '', address: window.currentDoc.clientAddress || ''
-                });
-                showToast("Client saved to Address Book!");
-            } catch (err) { showToast("Error saving client details."); }
+        window.openExpenseModal = () => {
+            const m = document.getElementById('expense-modal');
+            document.getElementById('modal-expense-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('modal-expense-desc').value = '';
+            document.getElementById('modal-expense-amount').value = '';
+            document.getElementById('modal-expense-vat').checked = false;
+            m.classList.remove('hidden'); m.classList.add('flex');
+        };
+        window.closeExpenseModal = () => { document.getElementById('expense-modal').classList.add('hidden'); };
+
+        window.saveExpense = async () => {
+            if(!currentUser) return;
+            const date = document.getElementById('modal-expense-date').value;
+            const desc = document.getElementById('modal-expense-desc').value;
+            const amt = document.getElementById('modal-expense-amount').value;
+            if(!date || !desc || !amt) { alert("Please fill all fields"); return; }
+
+            await setDoc(doc(db, 'artifacts', firestoreAppId, 'company', 'ignition_art', 'expenses', generateUUID()), {
+                date, description: desc, amount: parseFloat(amt), includesVat: document.getElementById('modal-expense-vat').checked
+            });
+            closeExpenseModal();
+            showToast('Expense logged!');
         };
 
-        window.renderPreview = () => {
-            syncEditorToState();
-            const d = window.currentDoc;
-            const subtotal = d.items.reduce((s, i) => s + (Number(i.qty) * Number(i.rate)), 0);
-            const discount = subtotal * (Number(d.discountRate) / 100);
-            const taxable = subtotal - discount;
-            const tax = taxable * (Number(d.taxRate) / 100);
-            
-            const html = `
-                <!-- Header -->
-                <div class="flex justify-between items-start mb-12 border-b-[3px] border-[#f37021] pb-6">
-                    <div class="max-w-[50%]">
-                        <img src="./assets/logo.png" alt="Ignition Art Logo" class="h-24 object-contain mb-4" 
-                             onerror="this.onerror=null; this.outerHTML='<div class=\\'mb-4\\'><h1 class=\\'text-3xl font-black text-[#f37021] tracking-tight uppercase leading-none\\'>IGNITION ART</h1><h2 class=\\'text-[13px] font-black text-[#b2beb5] uppercase tracking-widest mt-1\\'>Production & Development</h2></div>';">
-                        <div class="text-xs text-gray-600 space-y-1.5 font-medium">
-                            <p>CR: 1336823 | VATIN: OM1100399040</p>
-                            <p>+968 98080306 | info@ignitionpro.net | www.ignitionpro.net</p>
-                            <p>Sultanate of Oman, Muscat</p>
-                        </div>
-                    </div>
-                    <div class="text-right">
-                        <h2 class="text-4xl font-black uppercase tracking-widest text-[#b2beb5] mb-4 print:text-gray-400">
-                            ${d.type === 'Invoice' ? 'TAX INVOICE' : 'QUOTATION'}
-                        </h2>
-                        <div class="inline-block bg-[#f37021] print:bg-white print:border-2 print:border-gray-800 print:text-gray-900 text-white p-3 pr-6 rounded-l-xl text-right shadow-sm print:shadow-none">
-                            <p class="font-bold text-[13px] uppercase tracking-wider">${d.type === 'Invoice' ? 'Invoice Number:' : 'QTN:'} <span class="font-normal ml-3">${d.number}</span></p>
-                            <p class="font-bold text-[13px] uppercase tracking-wider mt-1.5">Date: <span class="font-normal ml-3">${d.date}</span></p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Client Info Grid -->
-                <div class="grid grid-cols-2 gap-12 mb-10">
-                    <div>
-                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">${d.type === 'Invoice' ? 'Bill To:' : 'To:'}</h3>
-                        <p class="font-black text-lg text-gray-900">${d.clientName || 'N/A'}</p>
-                        ${d.clientAddress ? `<p class="text-gray-700 whitespace-pre-line mt-1.5 font-medium leading-relaxed">${d.clientAddress}</p>` : ''}
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-[#f37021] print:text-gray-600 mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">Client Details:</h3>
-                        ${d.clientCR ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">CR:</span> ${d.clientCR}</p>` : ''}
-                        ${d.clientVAT ? `<p class="font-medium mt-1.5"><span class="font-bold text-gray-800">VAT Number:</span> ${d.clientVAT}</p>` : ''}
-                    </div>
-                </div>
-
-                <!-- Items Table -->
-                <table class="w-full mb-8 text-left border-collapse">
-                    <thead>
-                        <tr class="bg-[#b2beb5] text-white print:bg-gray-800 print:text-white text-xs uppercase tracking-wider">
-                            <th class="py-3 px-4 font-bold w-12 text-center border-l-4 border-[#f37021] print:border-gray-500">S.No.</th>
-                            <th class="py-3 px-4 font-bold">Description</th>
-                            <th class="py-3 px-4 font-bold w-24 text-center">Qty</th>
-                            <th class="py-3 px-4 font-bold w-32 text-right">Unit Rate</th>
-                            <th class="py-3 px-4 font-bold w-36 text-right">Amount</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${d.items.map((i, idx) => `
-                        <tr class="border-b border-gray-200 align-top hover:bg-gray-50">
-                            <td class="py-4 px-4 text-center text-gray-500 font-bold">${idx + 1}</td>
-                            <td class="py-4 px-4 whitespace-pre-line text-gray-900 font-medium">${i.description}</td>
-                            <td class="py-4 px-4 text-center text-gray-900 font-bold">${i.qty}</td>
-                            <td class="py-4 px-4 text-right text-gray-700 font-medium">${window.formatOMR(i.rate)}</td>
-                            <td class="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30 print:bg-transparent print:text-gray-900">${window.formatOMR(Number(i.qty) * Number(i.rate))}</td>
-                        </tr>`).join('')}
-                    </tbody>
-                </table>
-
-                <!-- Totals Section -->
-                <div class="flex justify-end mb-12">
-                    <div class="w-80 bg-gray-50 print:bg-white print:border-gray-300 p-5 rounded-xl border border-[#b2beb5]">
-                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700"><span>Subtotal</span><span class="font-bold">${window.formatOMR(subtotal)}</span></div>
-                        ${Number(d.discountRate) > 0 ? `<div class="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium"><span>Discount (${d.discountRate}%)</span><span class="font-bold">-${window.formatOMR(discount)}</span></div>` : ''}
-                        ${Number(d.taxRate) > 0 ? `<div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700"><span>VAT (${d.taxRate}%)</span><span class="font-bold">${window.formatOMR(tax)}</span></div>` : ''}
-                        <div class="flex justify-between py-3 text-xl font-black text-[#f37021] print:text-gray-900 border-t-[3px] border-[#b2beb5] print:border-gray-800 mt-2"><span>Total</span><span>${window.formatOMR(taxable + tax)}</span></div>
-                    </div>
-                </div>
-
-                <!-- Footer Details -->
-                <div class="grid grid-cols-2 gap-12 text-xs">
-                    <div>
-                        <h4 class="font-bold text-[#f37021] print:text-gray-600 uppercase tracking-wider mb-2 border-b-[2px] border-[#b2beb5] pb-1">Terms & Conditions</h4>
-                        <p class="whitespace-pre-line text-gray-700 leading-relaxed font-medium">${d.notes}</p>
-                        ${d.type === 'Invoice' ? `<p class="whitespace-pre-line text-gray-700 leading-relaxed mt-3 font-bold italic border-l-4 border-[#f37021] pl-3">* If any damage caused by mishandling or improper use occurred, client should pay the cost of the entire device.</p>` : ''}
-                    </div>
-                    <div class="bg-white p-5 rounded-xl border-2 border-[#b2beb5] print:border-gray-300">
-                        <h4 class="font-bold text-[#f37021] print:text-gray-600 uppercase tracking-wider mb-3 border-b-[2px] border-[#b2beb5] pb-1">Bank Details</h4>
-                        <table class="w-full text-gray-800">
-                            <tbody>
-                                <tr class="border-b border-gray-100"><td class="py-2 font-bold w-32 uppercase text-[11px] tracking-wider text-gray-500">Bank Name</td><td class="py-2 font-bold">BANK DHOFAR</td></tr>
-                                <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Account Name</td><td class="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
-                                <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10 print:bg-transparent"><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-[#f37021] print:text-gray-800 pl-2 print:pl-0">Account No.</td><td class="py-2 font-black text-[#f37021] print:text-gray-900 text-sm">01041415893001</td></tr>
-                                <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Branch</td><td class="py-2 font-bold">AL-KHOUD</td></tr>
-                                <tr><td class="py-2 font-bold uppercase text-[11px] tracking-wider text-gray-500">Beneficiary No</td><td class="py-2 font-bold">63651601</td></tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            `;
-            document.getElementById('print-container').innerHTML = html;
-        };
-
-        // Init view
-        toggleDashboardTab('reports');
     </script>
 </body>
 </html>
