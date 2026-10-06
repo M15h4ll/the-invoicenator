@@ -12,8 +12,8 @@
 
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f3f4f6; color: #111827; }
-        .tab-btn.active { background-color: #f37021; color: white; border-color: #f37021; }
-        .tab-btn { border-color: #e5e7eb; color: #4b5563; }
+        .tab-btn.active { background-color: #F04B22; color: white; border-color: #F04B22; }
+        .tab-btn { border-color: #CCCCCC; color: #4b5563; }
         
         /* A4 Single-Page Constraints */
         #printable-document {
@@ -74,15 +74,15 @@
             body.printing-report #list-view { max-width: 100% !important; padding: 12mm !important; }
             body.printing-report #list-view > div:first-child { display: none !important; }
             body.printing-report #report-print-header { display: block !important; }
-            body.printing-report .shadow-sm, body.printing-report .shadow-lg { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+            body.printing-report .shadow-sm, body.printing-report .shadow-lg { box-shadow: none !important; border: 1px solid #CCCCCC !important; }
         }
     </style>
 </head>
-<body class="selection:bg-[#f37021] selection:text-white">
+<body class="selection:bg-[#F04B22] selection:text-white">
 
     <!-- Toast Notification -->
-    <div id="toast" class="fixed top-6 right-6 z-50 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3 transition-opacity duration-300 opacity-0 pointer-events-none">
-        <i class="fa-solid fa-circle-check text-green-400"></i>
+    <div id="toast" class="fixed top-6 right-6 z-50 bg-gray-900 text-white px-6 py-3 rounded-xl shadow-2xl font-bold flex items-center gap-3 transition-opacity duration-300 opacity-0 pointer-events-none border border-[#CCCCCC]">
+        <i class="fa-solid fa-circle-check text-[#FCCD2A]"></i>
         <span id="toast-msg"></span>
     </div>
 
@@ -90,10 +90,10 @@
     <div id="list-view" class="p-6 max-w-7xl mx-auto block min-h-screen">
         
         <!-- Header & Tabs -->
-        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-[#1f2937] p-6 rounded-2xl shadow-xl text-white print-hidden gap-4">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 bg-[#1f2937] p-6 rounded-2xl shadow-xl text-white print-hidden gap-4 border border-[#CCCCCC]">
             <div>
                 <h1 class="text-3xl font-black tracking-tight flex items-center gap-3 uppercase">
-                    <i class="fa-solid fa-fire-flame-curved text-[#f37021]"></i> Ignition Central
+                    <i class="fa-solid fa-fire-flame-curved text-[#F04B22]"></i> Ignition Central
                 </h1>
                 <div class="flex gap-2 mt-4 overflow-x-auto pb-2 md:pb-0">
                     <button onclick="switchTab('documents')" id="tab-documents" class="tab-btn active px-4 py-2 rounded-lg font-bold text-sm transition-colors border whitespace-nowrap"><i class="fa-solid fa-file-invoice mr-1"></i> Documents</button>
@@ -105,13 +105,13 @@
             
             <!-- Contextual Action Buttons -->
             <div id="action-buttons-documents" class="shrink-0">
-                <button onclick="createNewDocument()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                <button onclick="createNewDocument()" class="bg-[#F04B22] hover:bg-[#d93f18] text-white px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
                     <i class="fa-solid fa-plus"></i> New Document
                 </button>
             </div>
             <div id="action-buttons-clients" class="hidden shrink-0">
-                <button onclick="openClientModal()" class="bg-[#b2beb5] hover:bg-gray-400 text-gray-900 px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
-                    <i class="fa-solid fa-user-plus"></i> Add Client
+                <button onclick="openClientModal()" class="bg-[#F2F2F2] hover:bg-[#CCCCCC] text-gray-900 border border-[#CCCCCC] px-6 py-3 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-lg">
+                    <i class="fa-solid fa-user-plus text-[#F04B22]"></i> Add Client
                 </button>
             </div>
             <div id="action-buttons-expenses" class="hidden shrink-0">
@@ -121,10 +121,10 @@
             </div>
             <div id="action-buttons-reports" class="hidden shrink-0 flex items-center gap-4">
                 <div class="text-gray-400 text-sm font-bold print-hidden flex items-center">
-                    <i class="fa-solid fa-calendar-days mr-2"></i> <span id="current-year-display"></span>
+                    <i class="fa-solid fa-calendar-days mr-2 text-[#FCCD2A]"></i> <span id="current-year-display"></span>
                 </div>
-                <button onclick="printReport()" class="bg-white text-gray-800 hover:bg-gray-100 px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm print-hidden border border-gray-200">
-                    <i class="fa-solid fa-file-pdf text-red-500"></i> PDF Report
+                <button onclick="printReport()" class="bg-white text-gray-800 hover:bg-[#F2F2F2] px-4 py-2.5 rounded-lg flex items-center gap-2 font-bold transition-colors shadow-sm print-hidden border border-[#CCCCCC]">
+                    <i class="fa-solid fa-file-pdf text-[#F04B22]"></i> PDF Report
                 </button>
             </div>
         </div>
@@ -133,10 +133,10 @@
         <div id="error-message" class="hidden p-6 bg-red-100 text-red-700 rounded-xl font-bold mb-4 border border-red-200"></div>
 
         <!-- Tab 1: Documents -->
-        <div id="dashboard-documents" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+        <div id="dashboard-documents" class="bg-white rounded-2xl shadow-sm border border-[#CCCCCC] overflow-hidden hidden">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                    <tr class="bg-[#F2F2F2] border-b border-[#CCCCCC] text-gray-600 uppercase text-xs tracking-wider">
                         <th class="p-4 font-bold">Type</th>
                         <th class="p-4 font-bold">Number</th>
                         <th class="p-4 font-bold">Date</th>
@@ -148,16 +148,16 @@
                 <tbody id="documents-table-body"></tbody>
             </table>
             <div id="documents-empty" class="hidden p-16 text-center">
-                <i class="fa-solid fa-file-invoice text-4xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <i class="fa-solid fa-file-invoice text-4xl text-[#CCCCCC] mb-4 opacity-50"></i>
                 <h3 class="text-xl font-bold text-gray-700">No documents yet</h3>
             </div>
         </div>
 
         <!-- Tab 2: Address Book -->
-        <div id="dashboard-clients" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+        <div id="dashboard-clients" class="bg-white rounded-2xl shadow-sm border border-[#CCCCCC] overflow-hidden hidden">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                    <tr class="bg-[#F2F2F2] border-b border-[#CCCCCC] text-gray-600 uppercase text-xs tracking-wider">
                         <th class="p-4 font-bold">Client Name</th>
                         <th class="p-4 font-bold">CR Number</th>
                         <th class="p-4 font-bold">VAT Number</th>
@@ -168,16 +168,16 @@
                 <tbody id="clients-table-body"></tbody>
             </table>
             <div id="clients-empty" class="hidden p-16 text-center">
-                <i class="fa-solid fa-address-book text-4xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <i class="fa-solid fa-address-book text-4xl text-[#CCCCCC] mb-4 opacity-50"></i>
                 <h3 class="text-xl font-bold text-gray-700">No clients saved</h3>
             </div>
         </div>
 
         <!-- Tab 3: Expenses -->
-        <div id="dashboard-expenses" class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hidden">
+        <div id="dashboard-expenses" class="bg-white rounded-2xl shadow-sm border border-[#CCCCCC] overflow-hidden hidden">
             <table class="w-full text-left border-collapse">
                 <thead>
-                    <tr class="bg-gray-50 border-b border-gray-200 text-gray-600 uppercase text-xs tracking-wider">
+                    <tr class="bg-[#F2F2F2] border-b border-[#CCCCCC] text-gray-600 uppercase text-xs tracking-wider">
                         <th class="p-4 font-bold">Date</th>
                         <th class="p-4 font-bold">Description</th>
                         <th class="p-4 font-bold text-right">Amount (OMR)</th>
@@ -188,7 +188,7 @@
                 <tbody id="expenses-table-body"></tbody>
             </table>
             <div id="expenses-empty" class="hidden p-16 text-center">
-                <i class="fa-solid fa-receipt text-4xl text-[#b2beb5] mb-4 opacity-50"></i>
+                <i class="fa-solid fa-receipt text-4xl text-[#CCCCCC] mb-4 opacity-50"></i>
                 <h3 class="text-xl font-bold text-gray-700">No expenses logged</h3>
             </div>
         </div>
@@ -196,20 +196,20 @@
         <!-- Tab 4: Reports & Tax -->
         <div id="dashboard-reports" class="space-y-6 hidden">
             <!-- Hidden Print Header -->
-            <div id="report-print-header" class="hidden mb-8 border-b-[3px] border-[#f37021] pb-4">
+            <div id="report-print-header" class="hidden mb-8 border-b-[3px] border-[#F04B22] pb-4">
                 <h1 class="text-3xl font-black text-gray-900 uppercase tracking-tight">Ignition Art Production & Development</h1>
                 <h2 class="text-lg font-bold text-gray-500 uppercase tracking-widest mt-1">Quarterly Financial & Tax Report - <span id="print-year-display"></span></h2>
             </div>
 
             <!-- Chart -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 print-exact">
-                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-chart-line text-[#f37021] mr-2"></i> Income vs Expenses</h3>
+            <div class="bg-white rounded-2xl shadow-sm border border-[#CCCCCC] p-6 print-exact">
+                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-4"><i class="fa-solid fa-chart-line text-[#F04B22] mr-2"></i> Income vs Expenses</h3>
                 <div class="relative h-72 w-full"><canvas id="financeChart"></canvas></div>
             </div>
 
             <!-- Tax Engine -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 print-exact">
-                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-6"><i class="fa-solid fa-building-columns text-[#f37021] mr-2"></i> Automated VAT Engine (5%)</h3>
+            <div class="bg-white rounded-2xl shadow-sm border border-[#CCCCCC] p-6 print-exact">
+                <h3 class="text-xl font-black text-gray-800 uppercase tracking-wide mb-6"><i class="fa-solid fa-building-columns text-[#F04B22] mr-2"></i> Automated VAT Engine (5%)</h3>
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="tax-grid">
                     <!-- Populated by JS -->
                 </div>
@@ -220,12 +220,12 @@
     <!-- ==================== EDITOR VIEW ==================== -->
     <div id="editor-view" class="p-6 max-w-5xl mx-auto hidden print-hidden">
         <div class="flex justify-between items-center mb-6">
-            <button onclick="switchView('list-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+            <button onclick="switchView('list-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#F04B22] font-bold transition-colors">
                 <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
             </button>
             <div class="flex gap-3">
-                <button onclick="previewDocument()" class="bg-[#b2beb5] hover:bg-gray-400 text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-sm">
-                    <i class="fa-solid fa-eye"></i> Preview
+                <button onclick="previewDocument()" class="bg-[#F2F2F2] hover:bg-[#CCCCCC] text-gray-800 border border-[#CCCCCC] px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-sm">
+                    <i class="fa-solid fa-eye text-[#F04B22]"></i> Preview
                 </button>
                 <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-sm">
                     <i class="fa-solid fa-cloud-arrow-up"></i> Save to Cloud
@@ -233,12 +233,12 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-8 space-y-8">
+        <div class="bg-white rounded-2xl shadow-sm border border-[#CCCCCC] p-8 space-y-8">
             <!-- Settings -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Document Type</label>
-                    <select id="edit-type" onchange="handleTypeChange()" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
+                    <select id="edit-type" onchange="handleTypeChange()" class="w-full border border-[#CCCCCC] rounded-lg p-2.5 focus:ring-2 focus:ring-[#F04B22] font-medium">
                         <option value="Invoice">Tax Invoice</option>
                         <option value="Quotation">Quotation</option>
                     </select>
@@ -246,77 +246,77 @@
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Document Number</label>
                     <div class="flex gap-2">
-                        <input type="text" id="edit-number" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium font-mono text-sm">
-                        <button onclick="autoGenerateNumber()" class="bg-gray-100 hover:bg-gray-200 text-gray-600 px-3 rounded-lg border border-gray-300" title="Auto Generate Number">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <input type="text" id="edit-number" class="w-full border border-[#CCCCCC] rounded-lg p-2.5 focus:ring-2 focus:ring-[#F04B22] font-medium font-mono text-sm">
+                        <button onclick="autoGenerateNumber()" class="bg-[#F2F2F2] hover:bg-[#CCCCCC] text-gray-700 px-3 rounded-lg border border-[#CCCCCC]" title="Auto Generate Number">
+                            <i class="fa-solid fa-wand-magic-sparkles text-[#FCCD2A]"></i>
                         </button>
                     </div>
                 </div>
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-1">Date</label>
-                    <input type="date" id="edit-date" onchange="autoGenerateNumber(true)" class="w-full border border-gray-300 rounded-lg p-2.5 focus:ring-2 focus:ring-[#f37021] font-medium">
+                    <input type="date" id="edit-date" onchange="autoGenerateNumber(true)" class="w-full border border-[#CCCCCC] rounded-lg p-2.5 focus:ring-2 focus:ring-[#F04B22] font-medium">
                 </div>
             </div>
 
             <!-- Client Area -->
-            <div class="p-6 bg-[#b2beb5] bg-opacity-10 rounded-xl border border-[#b2beb5] border-opacity-30">
+            <div class="p-6 bg-[#F2F2F2] rounded-xl border border-[#CCCCCC]">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-black text-gray-800 uppercase tracking-wide"><i class="fa-solid fa-users text-[#f37021]"></i> Client Information</h3>
-                    <select id="edit-client-select" onchange="loadClientIntoEditor()" class="text-sm border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-[#f37021] font-medium bg-white w-64">
+                    <h3 class="text-lg font-black text-gray-800 uppercase tracking-wide"><i class="fa-solid fa-users text-[#F04B22]"></i> Client Information</h3>
+                    <select id="edit-client-select" onchange="loadClientIntoEditor()" class="text-sm border border-[#CCCCCC] rounded-lg p-2 focus:ring-2 focus:ring-[#F04B22] font-medium bg-white w-64">
                         <option value="">Load from Address Book...</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase">Client / Company Name</label>
-                        <input type="text" id="edit-clientName" onchange="autoGenerateNumber(true)" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium">
+                        <input type="text" id="edit-clientName" onchange="autoGenerateNumber(true)" class="w-full border border-[#CCCCCC] rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#F04B22] font-medium bg-white">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase">VAT Number</label>
-                        <input type="text" id="edit-clientVAT" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium">
+                        <input type="text" id="edit-clientVAT" class="w-full border border-[#CCCCCC] rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#F04B22] font-medium bg-white">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-gray-500 uppercase">CR Number</label>
-                        <input type="text" id="edit-clientCR" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium">
+                        <input type="text" id="edit-clientCR" class="w-full border border-[#CCCCCC] rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#F04B22] font-medium bg-white">
                     </div>
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-gray-500 uppercase">Address</label>
-                        <textarea id="edit-clientAddress" class="w-full border border-white rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#f37021] font-medium" rows="2"></textarea>
+                        <textarea id="edit-clientAddress" class="w-full border border-[#CCCCCC] rounded-lg p-2 shadow-sm focus:ring-2 focus:ring-[#F04B22] font-medium bg-white" rows="2"></textarea>
                     </div>
                 </div>
             </div>
 
             <!-- Items -->
             <div>
-                <h3 class="text-lg font-black text-gray-800 mb-4 uppercase tracking-wide"><i class="fa-solid fa-briefcase text-[#f37021]"></i> Services</h3>
+                <h3 class="text-lg font-black text-gray-800 mb-4 uppercase tracking-wide"><i class="fa-solid fa-briefcase text-[#F04B22]"></i> Services</h3>
                 <div id="editor-items-container" class="space-y-3">
                     <!-- Items rendered here via JS -->
                 </div>
-                <button onclick="addEditorItem()" class="mt-4 flex items-center gap-2 bg-orange-50 text-[#f37021] border border-[#f37021] font-black px-4 py-2 rounded-lg uppercase text-sm shadow-sm hover:bg-[#f37021] hover:text-white transition-colors">
+                <button onclick="addEditorItem()" class="mt-4 flex items-center gap-2 bg-[#F2F2F2] text-[#F04B22] border border-[#F04B22] font-black px-4 py-2 rounded-lg uppercase text-sm shadow-sm hover:bg-[#F04B22] hover:text-white transition-colors">
                     <i class="fa-solid fa-circle-plus"></i> Add Service Line
                 </button>
             </div>
 
             <!-- Totals & Notes -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t-2 border-gray-100 pt-8">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 border-t-2 border-[#CCCCCC] pt-8">
                 <div>
                     <label class="block text-sm font-bold text-gray-700 mb-2 uppercase tracking-wide">Terms & Conditions (Quotation Only)</label>
-                    <textarea id="edit-notes" class="w-full border border-gray-300 rounded-xl p-4 focus:ring-2 focus:ring-[#f37021] h-48 font-medium leading-relaxed bg-gray-50"></textarea>
+                    <textarea id="edit-notes" class="w-full border border-[#CCCCCC] rounded-xl p-4 focus:ring-2 focus:ring-[#F04B22] h-48 font-medium leading-relaxed bg-[#F2F2F2]"></textarea>
                 </div>
-                <div class="bg-gray-50 p-6 rounded-xl border border-gray-200 space-y-4">
-                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
+                <div class="bg-[#F2F2F2] p-6 rounded-xl border border-[#CCCCCC] space-y-4">
+                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-[#CCCCCC] shadow-sm">
                         <span class="text-gray-700 font-bold">Tax Rate (VAT %)</span>
-                        <input type="number" id="edit-taxRate" oninput="updateLiveTotals()" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021]">
+                        <input type="number" id="edit-taxRate" oninput="updateLiveTotals()" class="w-24 border border-[#CCCCCC] rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#F04B22]">
                     </div>
-                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border shadow-sm">
+                    <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-[#CCCCCC] shadow-sm">
                         <span class="text-gray-700 font-bold">Discount (%)</span>
-                        <input type="number" id="edit-discountRate" oninput="updateLiveTotals()" class="w-24 border border-gray-300 rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#f37021]">
+                        <input type="number" id="edit-discountRate" oninput="updateLiveTotals()" class="w-24 border border-[#CCCCCC] rounded-md p-1.5 text-right font-bold focus:ring-2 focus:ring-[#F04B22]">
                     </div>
-                    <div class="pt-4 border-t border-gray-200">
+                    <div class="pt-4 border-t border-[#CCCCCC]">
                         <div class="flex justify-between text-sm text-gray-600 mb-1"><span>Subtotal:</span> <span id="live-subtotal" class="font-bold">OMR 0.000</span></div>
-                        <div class="flex justify-between text-sm text-[#f37021] mb-1"><span>Discount:</span> <span id="live-discount" class="font-bold">OMR 0.000</span></div>
+                        <div class="flex justify-between text-sm text-[#F04B22] mb-1"><span>Discount:</span> <span id="live-discount" class="font-bold">OMR 0.000</span></div>
                         <div class="flex justify-between text-sm text-gray-600 mb-3"><span>Tax:</span> <span id="live-tax" class="font-bold">OMR 0.000</span></div>
-                        <div class="flex justify-between text-xl font-black text-gray-900 border-t pt-2"><span>Total:</span> <span id="live-total">OMR 0.000</span></div>
+                        <div class="flex justify-between text-xl font-black text-gray-900 border-t border-[#CCCCCC] pt-2"><span>Total:</span> <span id="live-total">OMR 0.000</span></div>
                     </div>
                 </div>
             </div>
@@ -326,31 +326,31 @@
     <!-- ==================== PREVIEW VIEW ==================== -->
     <div id="preview-view" class="p-4 md:p-6 max-w-4xl mx-auto hidden print:max-w-none print:p-0">
         <div class="print-hidden flex justify-between items-center mb-4">
-            <button onclick="switchView('editor-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
+            <button onclick="switchView('editor-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#F04B22] font-bold transition-colors">
                 <i class="fa-solid fa-pen-to-square"></i> Edit
             </button>
             <div class="flex gap-3">
                 <button onclick="saveDocument()" class="bg-[#1f2937] hover:bg-black text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-md">
                     <i class="fa-solid fa-floppy-disk"></i> Save Data
                 </button>
-                <button onclick="window.print()" class="bg-[#f37021] hover:bg-[#d95d18] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-md">
+                <button onclick="window.print()" class="bg-[#F04B22] hover:bg-[#d93f18] text-white px-5 py-2.5 rounded-lg flex items-center gap-2 font-bold shadow-md">
                     <i class="fa-solid fa-print"></i> Download PDF
                 </button>
             </div>
         </div>
 
         <!-- ACTUAL DOCUMENT (A4 STRICT CONSTRAINT CONTAINER) -->
-        <div id="printable-document" class="shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none text-gray-900 text-xs">
+        <div id="printable-document" class="shadow-2xl print:shadow-none border border-[#CCCCCC] print:border-none rounded-xl print:rounded-none text-gray-900 text-xs">
             
             <!-- UPPER HALF: Header, Client, Items, Totals -->
             <div>
                 <!-- Header -->
-                <div class="flex justify-between items-start mb-6 border-b-2 border-[#f37021] pb-4">
+                <div class="flex justify-between items-start mb-6 border-b-2 border-[#F04B22] pb-4">
                     <div class="max-w-[55%]">
                         <!-- LOGO WRAPPER WITH EXACT-WIDTH SUBTITLE -->
                         <div class="inline-block w-52 mb-3">
-                            <img src="./assets/logo.png" alt="Ignition Art Logo" class="w-full object-contain mb-1.5" onerror="this.outerHTML='<div class=\'mb-1\'><h1 class=\'text-2xl font-black text-[#f37021] tracking-tight uppercase leading-none\'>IGNITION ART</h1></div>'">
-                            <div class="text-[8.5px] font-bold text-gray-500 uppercase tracking-widest text-justify [text-align-last:justify] leading-none select-none">
+                            <img src="./assets/logo.png" alt="Ignition Art Logo" class="w-full object-contain mb-1.5" onerror="this.outerHTML='<div class=\'mb-1\'><h1 class=\'text-2xl font-black text-[#F04B22] tracking-tight uppercase leading-none\'>IGNITION ART</h1></div>'">
+                            <div class="text-[8.5px] font-bold text-gray-600 uppercase tracking-widest text-justify [text-align-last:justify] leading-none select-none">
                                 Ignition Art Production & Development
                             </div>
                         </div>
@@ -362,8 +362,8 @@
                         </div>
                     </div>
                     <div class="text-right">
-                        <h2 id="prev-title" class="text-3xl font-black uppercase tracking-widest text-[#b2beb5] mb-2 leading-none">INVOICE</h2>
-                        <div class="inline-block bg-[#f37021] text-white px-3 py-2 rounded-l-lg text-right shadow-sm text-[11px]">
+                        <h2 id="prev-title" class="text-3xl font-black uppercase tracking-widest text-[#CCCCCC] mb-2 leading-none">INVOICE</h2>
+                        <div class="inline-block bg-[#F04B22] text-white px-3 py-2 rounded-l-lg text-right shadow-sm text-[11px]">
                             <p class="font-bold uppercase tracking-wider">
                                 <span id="prev-num-label">No:</span> <span id="prev-number" class="font-normal ml-2"></span>
                             </p>
@@ -377,12 +377,12 @@
                 <!-- Client Info Section (Dynamic Grid Layout) -->
                 <div id="prev-client-section" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-xs">
                     <div id="prev-client-box-left" class="space-y-0.5">
-                        <h3 id="prev-to-label" class="font-bold text-[#f37021] mb-1 border-b border-[#b2beb5] pb-0.5 uppercase text-[10px] tracking-wider">Bill To:</h3>
+                        <h3 id="prev-to-label" class="font-bold text-[#F04B22] mb-1 border-b border-[#CCCCCC] pb-0.5 uppercase text-[10px] tracking-wider">Bill To:</h3>
                         <p id="prev-clientName" class="font-black text-sm text-gray-900 leading-snug"></p>
                         <p id="prev-clientAddress" class="text-gray-700 whitespace-pre-line font-medium leading-tight text-[11px]"></p>
                     </div>
                     <div id="prev-client-box-right" class="space-y-0.5">
-                        <h3 class="font-bold text-[#f37021] mb-1 border-b border-[#b2beb5] pb-0.5 uppercase text-[10px] tracking-wider">Client Details:</h3>
+                        <h3 class="font-bold text-[#F04B22] mb-1 border-b border-[#CCCCCC] pb-0.5 uppercase text-[10px] tracking-wider">Client Details:</h3>
                         <p id="prev-clientCR-row" class="font-medium text-[11px]"><span class="font-bold text-gray-800">CR:</span> <span id="prev-clientCR"></span></p>
                         <p id="prev-clientVAT-row" class="font-medium text-[11px]"><span class="font-bold text-gray-800">VAT Number:</span> <span id="prev-clientVAT"></span></p>
                     </div>
@@ -391,8 +391,8 @@
                 <!-- Table -->
                 <table class="w-full mb-4 text-left border-collapse text-xs">
                     <thead>
-                        <tr class="bg-[#b2beb5] text-white text-[11px] uppercase tracking-wider">
-                            <th class="py-2 px-3 font-bold w-10 text-center border-l-4 border-[#f37021]">S.No.</th>
+                        <tr class="bg-[#CCCCCC] text-gray-900 text-[11px] uppercase tracking-wider">
+                            <th class="py-2 px-3 font-bold w-10 text-center border-l-4 border-[#F04B22]">S.No.</th>
                             <th class="py-2 px-3 font-bold">Description</th>
                             <th class="py-2 px-3 font-bold w-20 text-center">Qty</th>
                             <th class="py-2 px-3 font-bold w-28 text-right">Unit Rate</th>
@@ -404,20 +404,20 @@
 
                 <!-- Summary Totals -->
                 <div class="flex justify-end mb-4">
-                    <div class="w-72 bg-gray-50 p-3 rounded-lg border border-[#b2beb5] text-xs">
-                        <div class="flex justify-between py-1 border-b border-gray-200 font-medium text-gray-700">
+                    <div class="w-72 bg-[#F2F2F2] p-3 rounded-lg border border-[#CCCCCC] text-xs">
+                        <div class="flex justify-between py-1 border-b border-[#CCCCCC] font-medium text-gray-700">
                             <span>Subtotal</span>
                             <span id="prev-subtotal" class="font-bold"></span>
                         </div>
-                        <div id="prev-discount-row" class="flex justify-between py-1 border-b border-gray-200 text-[#f37021] font-medium hidden">
+                        <div id="prev-discount-row" class="flex justify-between py-1 border-b border-[#CCCCCC] text-[#F04B22] font-medium hidden">
                             <span id="prev-discount-label">Discount</span>
                             <span id="prev-discount-val" class="font-bold"></span>
                         </div>
-                        <div id="prev-tax-row" class="flex justify-between py-1 border-b border-gray-200 font-medium text-gray-700 hidden">
+                        <div id="prev-tax-row" class="flex justify-between py-1 border-b border-[#CCCCCC] font-medium text-gray-700 hidden">
                             <span id="prev-tax-label">VAT</span>
                             <span id="prev-tax-val" class="font-bold"></span>
                         </div>
-                        <div class="flex justify-between py-1.5 text-base font-black text-[#f37021] border-t-2 border-[#b2beb5] mt-1">
+                        <div class="flex justify-between py-1.5 text-base font-black text-[#F04B22] border-t-2 border-[#CCCCCC] mt-1">
                             <span>Total</span>
                             <span id="prev-total"></span>
                         </div>
@@ -425,22 +425,22 @@
                 </div>
             </div>
 
-            <!-- LOWER HALF: Terms & Bank Footer (Clean Single-Page Grounding) -->
-            <div id="prev-footer-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] pt-2 border-t border-gray-200">
+            <!-- LOWER HALF: Terms & Bank Footer -->
+            <div id="prev-footer-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] pt-2 border-t border-[#CCCCCC]">
                 <!-- Terms Column (Quotation only) -->
                 <div id="prev-terms-column">
-                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-1 border-b border-[#b2beb5] pb-0.5 text-[10px]">Terms & Conditions</h4>
+                    <h4 class="font-bold text-[#F04B22] uppercase tracking-wider mb-1 border-b border-[#CCCCCC] pb-0.5 text-[10px]">Terms & Conditions</h4>
                     <p id="prev-notes" class="whitespace-pre-line text-gray-700 leading-tight font-medium"></p>
                 </div>
                 <!-- Bank Column -->
-                <div id="prev-bank-column" class="bg-white p-3 rounded-lg border border-[#b2beb5]">
-                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-1.5 border-b border-[#b2beb5] pb-0.5 text-[10px]">Bank Details</h4>
+                <div id="prev-bank-column" class="bg-white p-3 rounded-lg border border-[#CCCCCC]">
+                    <h4 class="font-bold text-[#F04B22] uppercase tracking-wider mb-1.5 border-b border-[#CCCCCC] pb-0.5 text-[10px]">Bank Details</h4>
                     <table class="w-full text-gray-800 leading-tight text-[11px]">
                         <tbody>
-                            <tr class="border-b border-gray-100"><td class="py-1 font-bold w-28 uppercase text-[10px] text-gray-500">Bank Name</td><td class="py-1 font-bold">BANK DHOFAR</td></tr>
-                            <tr class="border-b border-gray-100"><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Account Name</td><td class="py-1 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
-                            <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10"><td class="py-1 font-bold uppercase text-[10px] text-[#f37021] pl-1">Account No.</td><td class="py-1 font-black text-[#f37021] text-xs">01041415893001</td></tr>
-                            <tr class="border-b border-gray-100"><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Branch</td><td class="py-1 font-bold">AL-KHOUD</td></tr>
+                            <tr class="border-b border-[#F2F2F2]"><td class="py-1 font-bold w-28 uppercase text-[10px] text-gray-500">Bank Name</td><td class="py-1 font-bold">BANK DHOFAR</td></tr>
+                            <tr class="border-b border-[#F2F2F2]"><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Account Name</td><td class="py-1 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
+                            <tr class="border-b border-[#F2F2F2] bg-[#F2F2F2]"><td class="py-1 font-bold uppercase text-[10px] text-[#F04B22] pl-1">Account No.</td><td class="py-1 font-black text-[#F04B22] text-xs">01041415893001</td></tr>
+                            <tr class="border-b border-[#F2F2F2]"><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Branch</td><td class="py-1 font-bold">AL-KHOUD</td></tr>
                             <tr><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Beneficiary No</td><td class="py-1 font-bold">63651601</td></tr>
                         </tbody>
                     </table>
@@ -451,36 +451,36 @@
 
     <!-- Modals -->
     <div id="client-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 print-hidden">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-[#CCCCCC]">
             <h2 class="text-xl font-black text-gray-800 mb-6 uppercase tracking-wide">Save Client Details</h2>
             <div class="space-y-4">
                 <input type="hidden" id="modal-client-id">
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">Company Name *</label><input type="text" id="modal-client-name" class="w-full border rounded-lg p-2 font-medium"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">CR Number</label><input type="text" id="modal-client-cr" class="w-full border rounded-lg p-2 font-medium"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">VAT Number</label><input type="text" id="modal-client-vat" class="w-full border rounded-lg p-2 font-medium"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">Address</label><textarea id="modal-client-address" class="w-full border rounded-lg p-2 font-medium" rows="2"></textarea></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Company Name *</label><input type="text" id="modal-client-name" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">CR Number</label><input type="text" id="modal-client-cr" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">VAT Number</label><input type="text" id="modal-client-vat" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Address</label><textarea id="modal-client-address" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium" rows="2"></textarea></div>
             </div>
             <div class="mt-6 flex justify-end gap-3">
-                <button onclick="closeClientModal()" class="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button onclick="saveClientFromModal()" class="px-4 py-2 bg-[#f37021] text-white font-bold rounded-lg hover:bg-[#d95d18]">Save</button>
+                <button onclick="closeClientModal()" class="px-4 py-2 text-gray-500 font-bold hover:bg-[#F2F2F2] rounded-lg">Cancel</button>
+                <button onclick="saveClientFromModal()" class="px-4 py-2 bg-[#F04B22] text-white font-bold rounded-lg hover:bg-[#d93f18]">Save</button>
             </div>
         </div>
     </div>
 
     <div id="expense-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50 print-hidden">
-        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
+        <div class="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl border border-[#CCCCCC]">
             <h2 class="text-xl font-black text-gray-800 mb-6 uppercase tracking-wide">Log Expense</h2>
             <div class="space-y-4">
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">Date *</label><input type="date" id="modal-expense-date" class="w-full border rounded-lg p-2 font-medium"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">Description *</label><input type="text" id="modal-expense-desc" class="w-full border rounded-lg p-2 font-medium" placeholder="e.g. Equipment Rental"></div>
-                <div><label class="block text-xs font-bold text-gray-500 mb-1">Amount (OMR) *</label><input type="number" step="0.001" id="modal-expense-amount" class="w-full border rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Date *</label><input type="date" id="modal-expense-date" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Description *</label><input type="text" id="modal-expense-desc" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium" placeholder="e.g. Equipment Rental"></div>
+                <div><label class="block text-xs font-bold text-gray-500 mb-1">Amount (OMR) *</label><input type="number" step="0.001" id="modal-expense-amount" class="w-full border border-[#CCCCCC] rounded-lg p-2 font-medium"></div>
                 <div class="flex items-center gap-2 mt-2">
-                    <input type="checkbox" id="modal-expense-vat" class="w-5 h-5 text-[#f37021] rounded">
+                    <input type="checkbox" id="modal-expense-vat" class="w-5 h-5 text-[#F04B22] rounded accent-[#F04B22]">
                     <label class="text-sm font-bold text-gray-700">Amount includes 5% VAT</label>
                 </div>
             </div>
             <div class="mt-6 flex justify-end gap-3">
-                <button onclick="closeExpenseModal()" class="px-4 py-2 text-gray-500 font-bold hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button onclick="closeExpenseModal()" class="px-4 py-2 text-gray-500 font-bold hover:bg-[#F2F2F2] rounded-lg">Cancel</button>
                 <button onclick="saveExpense()" class="px-4 py-2 bg-red-500 text-white font-bold rounded-lg hover:bg-red-600">Save Expense</button>
             </div>
         </div>
@@ -557,7 +557,7 @@
                 
                 if (contentEl) contentEl.classList.add('hidden');
                 if (btnEl) {
-                    btnEl.classList.remove('active', 'bg-[#f37021]', 'text-white');
+                    btnEl.classList.remove('active', 'bg-[#F04B22]', 'text-white');
                     btnEl.classList.add('bg-white');
                 }
                 if (actionEl) actionEl.classList.add('hidden');
@@ -565,7 +565,7 @@
                 if (t === tabName) {
                     if (contentEl) contentEl.classList.remove('hidden');
                     if (btnEl) {
-                        btnEl.classList.add('active', 'bg-[#f37021]', 'text-white');
+                        btnEl.classList.add('active', 'bg-[#F04B22]', 'text-white');
                         btnEl.classList.remove('bg-white');
                     }
                     if (actionEl) actionEl.classList.remove('hidden');
@@ -652,12 +652,12 @@
 
             documentsData.forEach(d => {
                 const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                tr.className = 'border-b border-[#CCCCCC] hover:bg-[#F2F2F2] transition-colors';
                 const isInv = d.type === 'Invoice';
                 
                 let statusHtml = '';
                 if(isInv) {
-                    const statusColor = d.received ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-100 text-[#f37021] border-orange-200';
+                    const statusColor = d.received ? 'bg-green-100 text-green-700 border-green-200' : 'bg-orange-50 text-[#F04B22] border-[#F04B22]';
                     statusHtml = `
                         <button onclick="toggleReceived('${d.id}', ${!d.received})" class="px-3 py-1 rounded-full text-xs font-bold uppercase border ${statusColor} hover:opacity-80 transition-opacity">
                             ${d.received ? '<i class="fa-solid fa-check"></i> Paid' : 'Pending'}
@@ -668,7 +668,7 @@
                 }
 
                 tr.innerHTML = `
-                    <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${isInv ? 'bg-[#f37021] text-white' : 'bg-[#b2beb5] text-white'}">${d.type}</span></td>
+                    <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold uppercase ${isInv ? 'bg-[#F04B22] text-white' : 'bg-[#CCCCCC] text-gray-800'}">${d.type}</span></td>
                     <td class="p-4 font-bold text-gray-900">${d.number}</td>
                     <td class="p-4 text-gray-600 font-medium">${d.date}</td>
                     <td class="p-4 text-gray-800 font-medium">${d.clientName || 'Untitled Client'}</td>
@@ -691,7 +691,7 @@
 
             clientsData.forEach(c => {
                 const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                tr.className = 'border-b border-[#CCCCCC] hover:bg-[#F2F2F2] transition-colors';
                 tr.innerHTML = `
                     <td class="p-4 font-bold text-gray-900">${c.name}</td>
                     <td class="p-4 text-gray-600 font-medium">${c.cr || '-'}</td>
@@ -715,7 +715,7 @@
 
             expensesData.forEach(e => {
                 const tr = document.createElement('tr');
-                tr.className = 'border-b border-gray-100 hover:bg-gray-50';
+                tr.className = 'border-b border-[#CCCCCC] hover:bg-[#F2F2F2] transition-colors';
                 tr.innerHTML = `
                     <td class="p-4 font-medium text-gray-800">${e.date}</td>
                     <td class="p-4 text-gray-600 font-bold">${e.description}</td>
@@ -775,8 +775,8 @@
                 data: {
                     labels: ['Q1 (Jan-Mar)', 'Q2 (Apr-Jun)', 'Q3 (Jul-Sep)', 'Q4 (Oct-Dec)'],
                     datasets: [
-                        { label: 'Income Received', data: qData.map(q => q.iTotal), backgroundColor: '#f37021', borderRadius: 4 },
-                        { label: 'Expenses Logged', data: qData.map(q => q.eTotal), backgroundColor: '#b2beb5', borderRadius: 4 }
+                        { label: 'Income Received', data: qData.map(q => q.iTotal), backgroundColor: '#F04B22', borderRadius: 4 },
+                        { label: 'Expenses Logged', data: qData.map(q => q.eTotal), backgroundColor: '#CCCCCC', borderRadius: 4 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { y: { beginAtZero: true } } }
@@ -788,13 +788,13 @@
                 const netVat = q.iVat - q.eVat;
                 const isDue = netVat > 0;
                 grid.innerHTML += `
-                    <div class="border rounded-xl p-4 ${isDue ? 'border-orange-200 bg-orange-50' : 'border-gray-200 bg-gray-50'}">
-                        <h4 class="font-black text-gray-800 border-b pb-2 mb-2">Quarter ${i+1}</h4>
+                    <div class="border rounded-xl p-4 ${isDue ? 'border-[#F04B22] bg-orange-50' : 'border-[#CCCCCC] bg-[#F2F2F2]'}">
+                        <h4 class="font-black text-gray-800 border-b border-[#CCCCCC] pb-2 mb-2">Quarter ${i+1}</h4>
                         <div class="flex justify-between text-xs mb-1"><span class="text-gray-500 font-bold">VAT Collected:</span><span class="font-black">${formatOMR(q.iVat)}</span></div>
                         <div class="flex justify-between text-xs mb-2"><span class="text-gray-500 font-bold">VAT Paid:</span><span class="font-black">${formatOMR(q.eVat)}</span></div>
-                        <div class="flex justify-between text-sm pt-2 border-t border-gray-200">
-                            <span class="font-bold ${isDue ? 'text-[#f37021]' : 'text-gray-600'}">Net VAT ${isDue ? 'Due' : 'Credit'}:</span>
-                            <span class="font-black ${isDue ? 'text-[#f37021]' : 'text-gray-600'}">${formatOMR(Math.abs(netVat))}</span>
+                        <div class="flex justify-between text-sm pt-2 border-t border-[#CCCCCC]">
+                            <span class="font-bold ${isDue ? 'text-[#F04B22]' : 'text-gray-600'}">Net VAT ${isDue ? 'Due' : 'Credit'}:</span>
+                            <span class="font-black ${isDue ? 'text-[#F04B22]' : 'text-gray-600'}">${formatOMR(Math.abs(netVat))}</span>
                         </div>
                     </div>
                 `;
@@ -903,23 +903,23 @@
             container.innerHTML = '';
             activeDoc.items.forEach((item, index) => {
                 const div = document.createElement('div');
-                div.className = 'flex gap-4 items-start bg-gray-50 border border-gray-200 p-4 rounded-xl shadow-sm';
+                div.className = 'flex gap-4 items-start bg-[#F2F2F2] border border-[#CCCCCC] p-4 rounded-xl shadow-sm';
                 div.innerHTML = `
                     <div class="flex-grow">
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Description</label>
-                        <textarea data-idx="${index}" data-field="description" class="item-input w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] font-medium bg-white" rows="2">${item.description}</textarea>
+                        <textarea data-idx="${index}" data-field="description" class="item-input w-full border border-[#CCCCCC] rounded-md p-2 focus:ring-2 focus:ring-[#F04B22] font-medium bg-white" rows="2">${item.description}</textarea>
                     </div>
                     <div class="w-24">
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Qty</label>
-                        <input type="number" data-idx="${index}" data-field="qty" value="${item.qty}" min="1" class="item-input w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] font-medium text-center bg-white">
+                        <input type="number" data-idx="${index}" data-field="qty" value="${item.qty}" min="1" class="item-input w-full border border-[#CCCCCC] rounded-md p-2 focus:ring-2 focus:ring-[#F04B22] font-medium text-center bg-white">
                     </div>
                     <div class="w-32">
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Rate</label>
-                        <input type="number" step="0.001" data-idx="${index}" data-field="rate" value="${item.rate}" class="item-input w-full border border-gray-300 rounded-md p-2 focus:ring-2 focus:ring-[#f37021] font-medium text-right bg-white">
+                        <input type="number" step="0.001" data-idx="${index}" data-field="rate" value="${item.rate}" class="item-input w-full border border-[#CCCCCC] rounded-md p-2 focus:ring-2 focus:ring-[#F04B22] font-medium text-right bg-white">
                     </div>
                     <div class="w-32">
                         <label class="block text-xs font-bold text-gray-500 mb-1 uppercase">Total</label>
-                        <div id="item-total-${index}" class="p-2 bg-gray-200 rounded-md border border-gray-300 text-gray-800 font-bold text-right">${(item.qty * item.rate).toFixed(3)}</div>
+                        <div id="item-total-${index}" class="p-2 bg-white rounded-md border border-[#CCCCCC] text-gray-800 font-bold text-right">${(item.qty * item.rate).toFixed(3)}</div>
                     </div>
                     <div class="pt-6">
                         <button onclick="removeEditorItem(${index})" class="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-md"><i class="fa-solid fa-trash"></i></button>
@@ -974,7 +974,7 @@
             switchView('list-view');
         };
 
-        // --- PREVIEW RENDERER (SINGLE A4 COMPACT ENGINE) ---
+        // --- PREVIEW RENDERER (SINGLE A4 COMPACT ENGINE WITH BRAND PALETTE) ---
         window.previewDocument = () => {
             syncDocToEditor();
             const isInvoice = activeDoc.type === 'Invoice';
@@ -1061,12 +1061,12 @@
                 const total = item.qty * item.rate;
                 sub += total;
                 tbody.innerHTML += `
-                    <tr class="border-b border-gray-200 align-top ${idx%2!==0?'bg-gray-50':''}">
+                    <tr class="border-b border-[#CCCCCC] align-top ${idx%2!==0?'bg-[#F2F2F2]':''}">
                         <td class="py-2.5 px-3 text-center font-bold text-gray-500">${idx + 1}</td>
-                        <td class="py-2.5 px-3 font-medium whitespace-pre-line leading-tight">${item.description}</td>
-                        <td class="py-2.5 px-3 text-center font-bold">${item.qty}</td>
+                        <td class="py-2.5 px-3 font-medium whitespace-pre-line leading-tight text-gray-800">${item.description}</td>
+                        <td class="py-2.5 px-3 text-center font-bold text-gray-700">${item.qty}</td>
                         <td class="py-2.5 px-3 text-right font-medium text-gray-700">${formatOMR(item.rate)}</td>
-                        <td class="py-2.5 px-3 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30">${formatOMR(total)}</td>
+                        <td class="py-2.5 px-3 text-right font-black text-[#F04B22] bg-[#F2F2F2] bg-opacity-60">${formatOMR(total)}</td>
                     </tr>
                 `;
             });
