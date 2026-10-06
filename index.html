@@ -15,17 +15,64 @@
         .tab-btn.active { background-color: #f37021; color: white; border-color: #f37021; }
         .tab-btn { border-color: #e5e7eb; color: #4b5563; }
         
+        /* A4 Single-Page Constraints */
+        #printable-document {
+            width: 210mm;
+            min-height: 297mm;
+            max-height: 297mm;
+            padding: 12mm 14mm;
+            margin: 0 auto;
+            box-sizing: border-box;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
         /* Print Overrides */
         @media print {
-            body { background-color: white !important; }
+            @page {
+                size: A4 portrait;
+                margin: 0;
+            }
+            html, body {
+                width: 210mm;
+                height: 297mm;
+                background-color: white !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+            }
             .print-hidden { display: none !important; }
             .print-exact { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            @page { margin: 0; }
             
+            #preview-view {
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                max-width: none !important;
+            }
+
+            #printable-document {
+                border: none !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+                width: 210mm !important;
+                height: 297mm !important;
+                max-height: 297mm !important;
+                min-height: 297mm !important;
+                padding: 12mm 14mm !important;
+                overflow: hidden !important;
+            }
+
             /* Report Print Layout */
-            body.printing-report { background-color: white !important; padding: 0 !important; }
-            body.printing-report #list-view { max-width: 100% !important; padding: 15mm !important; }
-            body.printing-report #list-view > div:first-child { display: none !important; } /* Hide tabs */
+            body.printing-report { background-color: white !important; padding: 0 !important; height: auto !important; overflow: visible !important; }
+            body.printing-report #list-view { max-width: 100% !important; padding: 12mm !important; }
+            body.printing-report #list-view > div:first-child { display: none !important; }
             body.printing-report #report-print-header { display: block !important; }
             body.printing-report .shadow-sm, body.printing-report .shadow-lg { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
         }
@@ -277,8 +324,8 @@
     </div>
 
     <!-- ==================== PREVIEW VIEW ==================== -->
-    <div id="preview-view" class="p-4 md:p-8 max-w-4xl mx-auto hidden print:max-w-none print:p-0">
-        <div class="print-hidden flex justify-between items-center mb-6">
+    <div id="preview-view" class="p-4 md:p-6 max-w-4xl mx-auto hidden print:max-w-none print:p-0">
+        <div class="print-hidden flex justify-between items-center mb-4">
             <button onclick="switchView('editor-view')" class="flex items-center gap-2 text-gray-600 hover:text-[#f37021] font-bold transition-colors">
                 <i class="fa-solid fa-pen-to-square"></i> Edit
             </button>
@@ -292,79 +339,80 @@
             </div>
         </div>
 
-        <!-- ACTUAL DOCUMENT -->
-        <div class="bg-white p-10 md:p-12 shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none min-h-[1056px] text-gray-900 text-sm flex flex-col justify-between">
+        <!-- ACTUAL DOCUMENT (A4 STRICT CONSTRAINT CONTAINER) -->
+        <div id="printable-document" class="shadow-2xl print:shadow-none border border-gray-200 print:border-none rounded-xl print:rounded-none text-gray-900 text-xs">
             
+            <!-- UPPER HALF: Header, Client, Items, Totals -->
             <div>
                 <!-- Header -->
-                <div class="flex justify-between items-start mb-10 border-b-[3px] border-[#f37021] pb-6">
-                    <div class="max-w-[50%]">
+                <div class="flex justify-between items-start mb-6 border-b-2 border-[#f37021] pb-4">
+                    <div class="max-w-[55%]">
                         <!-- Logo Fallback Logic -->
-                        <img src="./assets/logo.png" alt="Ignition Art Logo" class="h-24 object-contain mb-4" onerror="this.outerHTML='<div class=\'mb-4\'><h1 class=\'text-3xl font-black text-[#f37021] tracking-tight uppercase leading-none\'>IGNITION ART</h1><h2 class=\'text-[13px] font-black text-[#b2beb5] uppercase tracking-widest mt-1\'>Production & Development</h2></div>'">
+                        <img src="./assets/logo.png" alt="Ignition Art Logo" class="h-16 object-contain mb-2" onerror="this.outerHTML='<div class=\'mb-2\'><h1 class=\'text-2xl font-black text-[#f37021] tracking-tight uppercase leading-none\'>IGNITION ART</h1><h2 class=\'text-[11px] font-black text-[#b2beb5] uppercase tracking-widest mt-0.5\'>Production & Development</h2></div>'">
                         
-                        <div class="text-xs text-gray-600 space-y-1.5 font-medium">
+                        <div class="text-[11px] text-gray-600 space-y-0.5 font-medium leading-tight">
                             <p>CR: 1336823 | VATIN: OM1100399040</p>
                             <p>+968 98080306 | info@ignitionpro.net | www.ignitionpro.net</p>
                             <p>Sultanate of Oman, Muscat</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <h2 id="prev-title" class="text-4xl font-black uppercase tracking-widest text-[#b2beb5] mb-4">INVOICE</h2>
-                        <div class="inline-block bg-[#f37021] text-white p-3 pr-6 rounded-l-xl text-right shadow-sm">
-                            <p class="font-bold text-[13px] uppercase tracking-wider">
-                                <span id="prev-num-label">No:</span> <span id="prev-number" class="font-normal ml-3"></span>
+                        <h2 id="prev-title" class="text-3xl font-black uppercase tracking-widest text-[#b2beb5] mb-2 leading-none">INVOICE</h2>
+                        <div class="inline-block bg-[#f37021] text-white px-3 py-2 rounded-l-lg text-right shadow-sm text-[11px]">
+                            <p class="font-bold uppercase tracking-wider">
+                                <span id="prev-num-label">No:</span> <span id="prev-number" class="font-normal ml-2"></span>
                             </p>
-                            <p class="font-bold text-[13px] uppercase tracking-wider mt-1.5">
-                                Date: <span id="prev-date" class="font-normal ml-3"></span>
+                            <p class="font-bold uppercase tracking-wider mt-1">
+                                Date: <span id="prev-date" class="font-normal ml-2"></span>
                             </p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Client Info Section (Dynamic Grid Layout) -->
-                <div id="prev-client-section" class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-                    <div id="prev-client-box-left" class="space-y-1">
-                        <h3 id="prev-to-label" class="font-bold text-[#f37021] mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">Bill To:</h3>
-                        <p id="prev-clientName" class="font-black text-lg text-gray-900"></p>
-                        <p id="prev-clientAddress" class="text-gray-700 whitespace-pre-line font-medium leading-relaxed"></p>
+                <div id="prev-client-section" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5 text-xs">
+                    <div id="prev-client-box-left" class="space-y-0.5">
+                        <h3 id="prev-to-label" class="font-bold text-[#f37021] mb-1 border-b border-[#b2beb5] pb-0.5 uppercase text-[10px] tracking-wider">Bill To:</h3>
+                        <p id="prev-clientName" class="font-black text-sm text-gray-900 leading-snug"></p>
+                        <p id="prev-clientAddress" class="text-gray-700 whitespace-pre-line font-medium leading-tight text-[11px]"></p>
                     </div>
-                    <div id="prev-client-box-right" class="space-y-1.5">
-                        <h3 class="font-bold text-[#f37021] mb-2 border-b-[2px] border-[#b2beb5] pb-1 uppercase text-xs tracking-wider">Client Details:</h3>
-                        <p id="prev-clientCR-row" class="font-medium"><span class="font-bold text-gray-800">CR:</span> <span id="prev-clientCR"></span></p>
-                        <p id="prev-clientVAT-row" class="font-medium"><span class="font-bold text-gray-800">VAT Number:</span> <span id="prev-clientVAT"></span></p>
+                    <div id="prev-client-box-right" class="space-y-0.5">
+                        <h3 class="font-bold text-[#f37021] mb-1 border-b border-[#b2beb5] pb-0.5 uppercase text-[10px] tracking-wider">Client Details:</h3>
+                        <p id="prev-clientCR-row" class="font-medium text-[11px]"><span class="font-bold text-gray-800">CR:</span> <span id="prev-clientCR"></span></p>
+                        <p id="prev-clientVAT-row" class="font-medium text-[11px]"><span class="font-bold text-gray-800">VAT Number:</span> <span id="prev-clientVAT"></span></p>
                     </div>
                 </div>
 
                 <!-- Table -->
-                <table class="w-full mb-8 text-left border-collapse">
+                <table class="w-full mb-4 text-left border-collapse text-xs">
                     <thead>
-                        <tr class="bg-[#b2beb5] text-white text-xs uppercase tracking-wider">
-                            <th class="py-3 px-4 font-bold w-12 text-center border-l-4 border-[#f37021]">S.No.</th>
-                            <th class="py-3 px-4 font-bold">Description</th>
-                            <th class="py-3 px-4 font-bold w-24 text-center">Qty</th>
-                            <th class="py-3 px-4 font-bold w-32 text-right">Unit Rate</th>
-                            <th class="py-3 px-4 font-bold w-36 text-right">Amount</th>
+                        <tr class="bg-[#b2beb5] text-white text-[11px] uppercase tracking-wider">
+                            <th class="py-2 px-3 font-bold w-10 text-center border-l-4 border-[#f37021]">S.No.</th>
+                            <th class="py-2 px-3 font-bold">Description</th>
+                            <th class="py-2 px-3 font-bold w-20 text-center">Qty</th>
+                            <th class="py-2 px-3 font-bold w-28 text-right">Unit Rate</th>
+                            <th class="py-2 px-3 font-bold w-32 text-right">Amount</th>
                         </tr>
                     </thead>
                     <tbody id="prev-items"></tbody>
                 </table>
 
                 <!-- Summary Totals -->
-                <div class="flex justify-end mb-10">
-                    <div class="w-80 bg-gray-50 p-5 rounded-xl border border-[#b2beb5]">
-                        <div class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700">
+                <div class="flex justify-end mb-4">
+                    <div class="w-72 bg-gray-50 p-3 rounded-lg border border-[#b2beb5] text-xs">
+                        <div class="flex justify-between py-1 border-b border-gray-200 font-medium text-gray-700">
                             <span>Subtotal</span>
                             <span id="prev-subtotal" class="font-bold"></span>
                         </div>
-                        <div id="prev-discount-row" class="flex justify-between py-2 border-b border-gray-200 text-[#f37021] font-medium hidden">
+                        <div id="prev-discount-row" class="flex justify-between py-1 border-b border-gray-200 text-[#f37021] font-medium hidden">
                             <span id="prev-discount-label">Discount</span>
                             <span id="prev-discount-val" class="font-bold"></span>
                         </div>
-                        <div id="prev-tax-row" class="flex justify-between py-2 border-b border-gray-200 font-medium text-gray-700 hidden">
+                        <div id="prev-tax-row" class="flex justify-between py-1 border-b border-gray-200 font-medium text-gray-700 hidden">
                             <span id="prev-tax-label">VAT</span>
                             <span id="prev-tax-val" class="font-bold"></span>
                         </div>
-                        <div class="flex justify-between py-3 text-xl font-black text-[#f37021] border-t-[3px] border-[#b2beb5] mt-2">
+                        <div class="flex justify-between py-1.5 text-base font-black text-[#f37021] border-t-2 border-[#b2beb5] mt-1">
                             <span>Total</span>
                             <span id="prev-total"></span>
                         </div>
@@ -372,23 +420,23 @@
                 </div>
             </div>
 
-            <!-- Footer: Terms & Bank Details (Conditionally Arranged) -->
-            <div id="prev-footer-container" class="grid grid-cols-1 md:grid-cols-2 gap-8 text-xs mt-6">
-                <!-- Terms Column (Hidden for Invoices) -->
+            <!-- LOWER HALF: Terms & Bank Footer (Clean Single-Page Grounding) -->
+            <div id="prev-footer-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[11px] pt-2 border-t border-gray-200">
+                <!-- Terms Column (Quotation only) -->
                 <div id="prev-terms-column">
-                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-2 border-b-[2px] border-[#b2beb5] pb-1">Terms & Conditions</h4>
-                    <p id="prev-notes" class="whitespace-pre-line text-gray-700 leading-relaxed font-medium"></p>
+                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-1 border-b border-[#b2beb5] pb-0.5 text-[10px]">Terms & Conditions</h4>
+                    <p id="prev-notes" class="whitespace-pre-line text-gray-700 leading-tight font-medium"></p>
                 </div>
-                <!-- Bank Column (Stretches across on Invoices) -->
-                <div id="prev-bank-column" class="bg-white p-5 rounded-xl border-2 border-[#b2beb5]">
-                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-3 border-b-[2px] border-[#b2beb5] pb-1">Bank Details</h4>
-                    <table class="w-full text-gray-800">
+                <!-- Bank Column -->
+                <div id="prev-bank-column" class="bg-white p-3 rounded-lg border border-[#b2beb5]">
+                    <h4 class="font-bold text-[#f37021] uppercase tracking-wider mb-1.5 border-b border-[#b2beb5] pb-0.5 text-[10px]">Bank Details</h4>
+                    <table class="w-full text-gray-800 leading-tight text-[11px]">
                         <tbody>
-                            <tr class="border-b border-gray-100"><td class="py-2 font-bold w-36 uppercase text-[11px] text-gray-500">Bank Name</td><td class="py-2 font-bold">BANK DHOFAR</td></tr>
-                            <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] text-gray-500">Account Name</td><td class="py-2 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
-                            <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10"><td class="py-2 font-bold uppercase text-[11px] text-[#f37021] pl-2">Account No.</td><td class="py-2 font-black text-[#f37021] text-sm">01041415893001</td></tr>
-                            <tr class="border-b border-gray-100"><td class="py-2 font-bold uppercase text-[11px] text-gray-500">Branch</td><td class="py-2 font-bold">AL-KHOUD</td></tr>
-                            <tr><td class="py-2 font-bold uppercase text-[11px] text-gray-500">Beneficiary No</td><td class="py-2 font-bold">63651601</td></tr>
+                            <tr class="border-b border-gray-100"><td class="py-1 font-bold w-28 uppercase text-[10px] text-gray-500">Bank Name</td><td class="py-1 font-bold">BANK DHOFAR</td></tr>
+                            <tr class="border-b border-gray-100"><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Account Name</td><td class="py-1 font-bold leading-tight">IGNITION ART PRODUCTION AND DEVELOPMENT</td></tr>
+                            <tr class="border-b border-gray-100 bg-[#f37021] bg-opacity-10"><td class="py-1 font-bold uppercase text-[10px] text-[#f37021] pl-1">Account No.</td><td class="py-1 font-black text-[#f37021] text-xs">01041415893001</td></tr>
+                            <tr class="border-b border-gray-100"><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Branch</td><td class="py-1 font-bold">AL-KHOUD</td></tr>
+                            <tr><td class="py-1 font-bold uppercase text-[10px] text-gray-500">Beneficiary No</td><td class="py-1 font-bold">63651601</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -921,7 +969,7 @@
             switchView('list-view');
         };
 
-        // --- PREVIEW RENDERER (CLEANED UP & DYNAMIC) ---
+        // --- PREVIEW RENDERER (SINGLE A4 COMPACT ENGINE) ---
         window.previewDocument = () => {
             syncDocToEditor();
             const isInvoice = activeDoc.type === 'Invoice';
@@ -933,7 +981,7 @@
             document.getElementById('prev-number').innerText = activeDoc.number;
             document.getElementById('prev-date').innerText = activeDoc.date;
 
-            // --- SMART CLIENT SECTION (NO "N/A", AUTO-COLLAPSE) ---
+            // Smart Client Section
             const clientName = (activeDoc.clientName || '').trim();
             const clientAddress = (activeDoc.clientAddress || '').trim();
             const clientCR = (activeDoc.clientCR || '').trim();
@@ -943,7 +991,6 @@
             const rightBox = document.getElementById('prev-client-box-right');
             const clientSection = document.getElementById('prev-client-section');
 
-            // Left side (Name & Address)
             if (clientName || clientAddress) {
                 leftBox.classList.remove('hidden');
                 const nameEl = document.getElementById('prev-clientName');
@@ -966,7 +1013,6 @@
                 leftBox.classList.add('hidden');
             }
 
-            // Right side (CR & VAT)
             const crRow = document.getElementById('prev-clientCR-row');
             const vatRow = document.getElementById('prev-clientVAT-row');
             
@@ -990,13 +1036,11 @@
                 rightBox.classList.remove('hidden');
             }
 
-            // Overall client container adjustment
             const hasAnyClientData = clientName || clientAddress || clientCR || clientVAT;
             if (!hasAnyClientData) {
                 clientSection.classList.add('hidden');
             } else {
                 clientSection.classList.remove('hidden');
-                // If only one side is present, allow it to take full width cleanly
                 if (!leftBox.classList.contains('hidden') && rightBox.classList.contains('hidden')) {
                     leftBox.classList.add('md:col-span-2');
                 } else {
@@ -1004,7 +1048,7 @@
                 }
             }
 
-            // --- SERVICES TABLE ---
+            // Services Table
             const tbody = document.getElementById('prev-items');
             tbody.innerHTML = '';
             let sub = 0;
@@ -1013,16 +1057,16 @@
                 sub += total;
                 tbody.innerHTML += `
                     <tr class="border-b border-gray-200 align-top ${idx%2!==0?'bg-gray-50':''}">
-                        <td class="py-4 px-4 text-center font-bold text-gray-500">${idx + 1}</td>
-                        <td class="py-4 px-4 font-medium whitespace-pre-line">${item.description}</td>
-                        <td class="py-4 px-4 text-center font-bold">${item.qty}</td>
-                        <td class="py-4 px-4 text-right font-medium text-gray-700">${formatOMR(item.rate)}</td>
-                        <td class="py-4 px-4 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30">${formatOMR(total)}</td>
+                        <td class="py-2.5 px-3 text-center font-bold text-gray-500">${idx + 1}</td>
+                        <td class="py-2.5 px-3 font-medium whitespace-pre-line leading-tight">${item.description}</td>
+                        <td class="py-2.5 px-3 text-center font-bold">${item.qty}</td>
+                        <td class="py-2.5 px-3 text-right font-medium text-gray-700">${formatOMR(item.rate)}</td>
+                        <td class="py-2.5 px-3 text-right font-black text-[#f37021] bg-orange-50 bg-opacity-30">${formatOMR(total)}</td>
                     </tr>
                 `;
             });
 
-            // --- TOTALS ---
+            // Totals
             document.getElementById('prev-subtotal').innerText = formatOMR(sub);
             
             const dRow = document.getElementById('prev-discount-row');
@@ -1043,21 +1087,18 @@
             const final = sub - (sub * (activeDoc.discountRate/100)) + tax;
             document.getElementById('prev-total').innerText = formatOMR(final);
 
-            // --- TERMS & BANK FOOTER (INVOICE VS QUOTATION) ---
+            // Footer (Terms & Bank Details)
             const termsCol = document.getElementById('prev-terms-column');
             const bankCol = document.getElementById('prev-bank-column');
             const footerContainer = document.getElementById('prev-footer-container');
 
             if (isInvoice) {
-                // Invoicing: Completely remove Terms and Conditions
                 termsCol.classList.add('hidden');
-                // Bank Details take full width or align right nicely
                 footerContainer.classList.remove('md:grid-cols-2');
                 footerContainer.classList.add('flex', 'justify-end');
                 bankCol.classList.remove('w-full');
                 bankCol.classList.add('w-full', 'max-w-md');
             } else {
-                // Quotation: Display Terms & Conditions
                 termsCol.classList.remove('hidden');
                 document.getElementById('prev-notes').innerText = activeDoc.notes || '';
                 footerContainer.classList.add('md:grid-cols-2');
